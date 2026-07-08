@@ -163,11 +163,15 @@ function isBlankOrEmpty(val: string): boolean {
  * Convert an Excel serial date number to a DD/MM/YYYY string.
  */
 function excelSerialToDate(serial: number): string {
+  // Guard against invalid serial numbers
+  if (!Number.isFinite(serial) || serial <= 0) return '';
   // Excel serial date: days since 1900-01-01 (with Lotus 1-2-3 leap year bug)
   // The bug counts 29 Feb 1900 as a valid date, so for serial > 59 we subtract 1
   const adjustedSerial = serial > 59 ? serial - 1 : serial;
   const epoch = new Date(1900, 0, 1); // Jan 1, 1900
   const date = new Date(epoch.getTime() + (adjustedSerial - 1) * 86400000);
+  // Verify the resulting date is valid
+  if (isNaN(date.getTime())) return String(serial);
   const dd = String(date.getDate()).padStart(2, '0');
   const mm = String(date.getMonth() + 1).padStart(2, '0');
   const yyyy = date.getFullYear();
@@ -187,6 +191,8 @@ function formatDOB(val: unknown): string {
   
   // If it's a Date object
   if (val instanceof Date) {
+    // Guard against invalid Date objects
+    if (isNaN(val.getTime())) return '';
     const dd = String(val.getDate()).padStart(2, '0');
     const mm = String(val.getMonth() + 1).padStart(2, '0');
     const yyyy = val.getFullYear();
@@ -230,22 +236,6 @@ function detectHeaderRowCount(rows: (string | number | undefined)[][]): number {
   return 1;
 }
 
-/**
- * Find the column index range for a section header in a given header row.
- * Returns the start column index, or -1 if not found.
- */
-function findSectionStart(
-  headerRows: string[][],
-  pattern: RegExp,
-  afterCol: number = 0
-): number {
-  for (let r = 0; r < headerRows.length; r++) {
-    for (let c = afterCol; c < headerRows[r].length; c++) {
-      if (pattern.test(headerRows[r][c])) return c;
-    }
-  }
-  return -1;
-}
 
 /**
  * Parse co-scholastic or discipline grades from a section of the sheet.
@@ -424,6 +414,13 @@ export function parseWorkbook(
 ): ParsedWorkbook {
   const errors: ValidationError[] = [];
 
+  if (!buffer || buffer.byteLength === 0) {
+    return {
+      fileName, sheets: [], isValid: false,
+      errors: [{ sheet: '', message: 'File is empty (0 bytes).', severity: 'error' }],
+    };
+  }
+
   let workbook: XLSX.WorkBook;
   try {
     workbook = XLSX.read(buffer, { type: 'array' });
@@ -585,7 +582,7 @@ export function parseWorkbook(
       let currentSubject = '';
       let currentTermGroup = ''; // tracks "1ST TERM", "2ND TERM", "FINAL RESULT" etc.
 
-      const colCount = Math.max(...headerRows.map(r => r.length));
+      const colCount = headerRows.length > 0 ? Math.max(0, ...headerRows.map(r => r.length)) : 0;
       for (let col = 0; col < Math.min(colCount, subjectEndCol + 1); col++) {
         // If this column is already identified as metadata, skip
         if (metadataMap[col]) continue;
@@ -671,15 +668,16 @@ export function parseWorkbook(
 
       // Skip rows that look like headers (e.g., the 3rd header row that was missed)
       const firstCellStr = String(row[0] ?? '').trim().toUpperCase();
-      if (firstCellStr === 'REGD NO' || firstCellStr === 'REGD NO.' || firstCellStr === 'S.NO' || firstCellStr === 'SR.NO' || firstCellStr === 'SL. NO.' || firstCellStr === 'SL.NO') {
+      if (/^(REGD?\s*NO\.?|S\.?\s*NO\.?|SR\.?\s*NO\.?|SL\.?\s*NO\.?|SERIAL\s*(NO\.?|NUMBER))$/i.test(firstCellStr)) {
         continue; // This is a header row, not data
       }
       
       // Also skip rows that are section headers (e.g., "CLASS II", "ACADEMIC PERFORMANCE")
       const secondCellStr = String(row[1] ?? '').trim().toUpperCase();
-      if (secondCellStr.startsWith('CLASS ') || /ACADEMIC\s*PERFORMANCE/i.test(String(row[14] ?? ''))) {
-        continue;
-      }
+      if (secondCellStr.startsWith('CLASS ')) continue;
+      // Check all cells in the row for ACADEMIC PERFORMANCE (not just column 14)
+      const rowHasAcademicPerformance = row.some(cell => /ACADEMIC\s*PERFORMANCE/i.test(String(cell ?? '')));
+      if (rowHasAcademicPerformance) continue;
 
       const student: StudentData = {
         name: '', fatherName: '', motherName: '', dob: '',
@@ -696,7 +694,7 @@ export function parseWorkbook(
 
       // Fill metadata
       for (const [colStr, metaField] of Object.entries(metadataMap)) {
-        const colIdx = parseInt(colStr);
+        const colIdx = parseInt(colStr, 10);
         const rawVal = row[colIdx];
         const val = String(rawVal ?? '').trim();
         switch (metaField) {
@@ -761,6 +759,14 @@ export function parseWorkbook(
       }
 
       students.push(student);
+    }
+
+    // Add validation warnings for sheets with no students or no subjects detected
+    if (students.length === 0) {
+      sheetErrors.push({ sheet: sheetName, message: `Sheet "${sheetName}" has no student data rows.`, severity: 'warning' });
+    }
+    if (subjectNames.length === 0 && students.length > 0) {
+      sheetErrors.push({ sheet: sheetName, message: `Sheet "${sheetName}" has students but no subjects detected. Check header format.`, severity: 'warning' });
     }
 
     sheets.push({

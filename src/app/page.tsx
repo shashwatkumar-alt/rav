@@ -63,7 +63,7 @@ export default function HeroLoginPage() {
             className="hero-nav-logo"
             style={{ fontFamily: "'Instrument Serif', serif" }}
           >
-            RAV Public School
+            R.A.V. Public School
           </span>
 
           {/* Single Login Button */}
@@ -91,11 +91,11 @@ export default function HeroLoginPage() {
           className="hero-h1 animate-fade-rise"
           style={{ fontFamily: "'Instrument Serif', serif", letterSpacing: '-2.46px' }}
         >
-          RAV Public School
+          R.A.V. Public School
         </h1>
 
         <p className="hero-subtext animate-fade-rise-delay">
-          At RAV Public School, we nurture curious minds, build strong character, and
+          At R.A.V. Public School, we nurture curious minds, build strong character, and
           empower each learner to achieve excellence — inside the classroom and beyond.
         </p>
 
@@ -171,7 +171,7 @@ export default function HeroLoginPage() {
                 className="hero-login-title"
                 style={{ fontFamily: "'Instrument Serif', serif" }}
               >
-                RAV School Portal
+                R.A.V. School Portal
               </h2>
               <p className="hero-login-subtitle">Admin Result Generation System</p>
             </div>

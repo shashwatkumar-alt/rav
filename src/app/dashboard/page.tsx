@@ -155,7 +155,7 @@ export default function DashboardPage() {
           {/* Header */}
           <div className="dashboard-header">
             <h1 className="dashboard-title">
-              <span>RAV School</span> — Result Portal
+              <span>R.A.V. School</span> — Result Portal
             </h1>
             <button onClick={handleLogout} className="btn btn-danger" id="logout-btn">
               ⏻ Logout

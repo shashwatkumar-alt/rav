@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "RAV School Result Portal",
-  description: "Admin portal for RAV Residential Public School result generation",
+  title: "R.A.V. School Result Portal",
+  description: "Admin portal for R.A.V. Residential Public School result generation",
 };
 
 export default function RootLayout({
