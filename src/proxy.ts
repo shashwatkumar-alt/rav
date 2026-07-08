@@ -4,7 +4,7 @@ import { getJwtSecret } from './lib/jwt-secret';
 
 const COOKIE_NAME = 'rav-auth-token';
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Public paths that don't require auth
@@ -30,7 +30,7 @@ export async function middleware(request: NextRequest) {
     await jwtVerify(token, secret);
     return NextResponse.next();
   } catch (err) {
-    console.error('Auth verification error in middleware:', err);
+    console.error('Auth verification error in proxy:', err);
     if (pathname.startsWith('/api/')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
