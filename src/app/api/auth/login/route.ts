@@ -3,7 +3,16 @@ import { validateCredentials, signToken, COOKIE_NAME } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json(
+        { error: 'Invalid request body.' },
+        { status: 400 }
+      );
+    }
+
     const { username, password } = body;
 
     if (!username || !password) {
@@ -21,7 +30,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const token = await signToken();
+    let token: string;
+    try {
+      token = await signToken();
+    } catch (err) {
+      console.error('Failed to sign token:', err);
+      return NextResponse.json(
+        { error: 'Server configuration error. Contact administrator.' },
+        { status: 500 }
+      );
+    }
+
     const response = NextResponse.json({ success: true });
 
     response.cookies.set(COOKIE_NAME, token, {
@@ -33,10 +52,12 @@ export async function POST(request: NextRequest) {
     });
 
     return response;
-  } catch {
+  } catch (err) {
+    console.error('Login error:', err);
     return NextResponse.json(
       { error: 'An unexpected error occurred.' },
       { status: 500 }
     );
   }
 }
+
