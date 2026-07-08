@@ -21,24 +21,22 @@ const GRADING_SCALE: GradeInfo[] = [
   { grade: 'F', minPercent: 0, maxPercent: 10 },
 ];
 
-/**
- * Get grade from percentage
- */
+
 export function getGrade(percentage: number): string {
   if (isNaN(percentage) || percentage < 0) return 'F';
-  if (percentage > 100) return 'A+';
+  
+  const rounded = Math.round(percentage);
+  if (rounded > 100) return 'A+';
 
   for (const g of GRADING_SCALE) {
-    if (percentage >= g.minPercent && percentage <= g.maxPercent) {
+    if (rounded >= g.minPercent && rounded <= g.maxPercent) {
       return g.grade;
     }
   }
   return 'F';
 }
 
-/**
- * Get the full grading scale string for display
- */
+
 export function getGradingScaleText(): string {
   return 'Eight Point Grading Scale : A+( 91% − 100% ), A ( 81% − 90% ), B+(71% – 80%), B(61% – 70%), C+(51% – 60%), C(41% – 50%), D(33% – 40%), E+(21% – 33%), E(11% – 20%), F(0% – 10%)';
 }
