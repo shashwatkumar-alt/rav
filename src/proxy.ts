@@ -7,15 +7,11 @@ const COOKIE_NAME = 'rav-auth-token';
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Public paths that don't require auth
-  // Only login and logout are public — login needs to work before auth,
-  // logout just clears the cookie so it's safe to be public.
   const publicPaths = ['/api/auth/login', '/api/auth/logout'];
   if (publicPaths.includes(pathname)) {
     return NextResponse.next();
   }
 
-  // All other matched routes require a valid JWT
   const token = request.cookies.get(COOKIE_NAME)?.value;
 
   if (!token) {
@@ -41,3 +37,4 @@ export async function proxy(request: NextRequest) {
 export const config = {
   matcher: ['/dashboard/:path*', '/api/:path*'],
 };
+

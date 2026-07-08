@@ -2,10 +2,6 @@ import jsPDF from 'jspdf';
 import type { ParsedWorkbook, ResultType, StudentData } from './types';
 import { getGrade } from './grading';
 
-/**
- * Round any numeric value to nearest whole number for display.
- * Returns the value as a clean string. Non-numeric values pass through unchanged.
- */
 function formatDisplayValue(val: string | number | undefined | null): string {
   if (val === undefined || val === null || val === '') return '';
   if (typeof val === 'number') {
@@ -13,14 +9,12 @@ function formatDisplayValue(val: string | number | undefined | null): string {
   }
   const str = String(val);
   const num = parseFloat(str);
-  // Only reformat if the string is purely a number (not a grade like "A+")
   if (!isNaN(num) && str === String(num)) {
     return Math.round(num).toString();
   }
   return str;
 }
 
-// Additional subjects that go in a separate table with simplified columns (no PT/NB/SEA)
 const ADDITIONAL_SUBJECT_PATTERNS = [
   /^computer$/i,
   /^g\.?\s*k\.?$/i,
@@ -35,9 +29,6 @@ function isAdditionalSubject(name: string): boolean {
   return ADDITIONAL_SUBJECT_PATTERNS.some(p => p.test(name.trim()));
 }
 
-// ============================================================
-// Co-Scholastic and Discipline items (from DOCX template)
-// ============================================================
 const CO_SCHOLASTIC_ITEMS = [
   'Work education',
   'Art Education',
@@ -58,9 +49,6 @@ const DISCIPLINE_ITEMS = [
   'Attitude Towards society',
 ];
 
-// ============================================================
-// PDF Generation — matches Result_Card_Format.docx exactly
-// ============================================================
 export async function generateResultsPDF(
   workbook: ParsedWorkbook,
   resultType: ResultType,
@@ -68,29 +56,26 @@ export async function generateResultsPDF(
 ): Promise<Uint8Array> {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
-  const PW = 210; // page width
-  const ML = 8;   // margin left
+  const PW = 210;
+  const ML = 8;
   const MR = 8;
-  const CW = PW - ML - MR; // content width
+  const CW = PW - ML - MR;
 
-  // Load images
-  // logo2.jpg = School logo (for header), logo1.png = Principal's signature (for signature box)
   let schoolLogo: string | null = null;
   let principalSign: string | null = null;
   try {
     const r = await fetch('/logo2.jpg');
     if (r.ok) schoolLogo = await blobToBase64(await r.blob());
-  } catch { /* skip */ }
+  } catch {}
   try {
     const r = await fetch('/logo1.png');
     if (r.ok) principalSign = await blobToBase64(await r.blob());
-  } catch { /* skip */ }
+  } catch {}
 
   let firstPage = true;
 
   for (const sheet of workbook.sheets) {
     for (const student of sheet.students) {
-      // Skip students with empty names
       if (!student.name && !student.rollNo) continue;
 
       if (!firstPage) doc.addPage();
@@ -114,9 +99,6 @@ function blobToBase64(blob: Blob): Promise<string> {
   });
 }
 
-// ============================================================
-// Render one student's result page (matches DOCX template)
-// ============================================================
 function renderStudentResult(
   doc: jsPDF,
   student: StudentData,
@@ -130,12 +112,9 @@ function renderStudentResult(
   let y = 6;
   const examLabel = resultType === 'FIRST_TERM' ? 'SA-I (Term I)' : 'SA-II (Term II)';
 
-  // ────────────────────────────────────────────
-  // HEADER: School name, address, contact, logos
-  // ────────────────────────────────────────────
   if (schoolLogo) {
-    try { doc.addImage(schoolLogo, 'JPEG', ML + 2, y, 16, 16); } catch { /* skip */ }
-    try { doc.addImage(schoolLogo, 'JPEG', PW - ML - 18, y, 16, 16); } catch { /* skip */ }
+    try { doc.addImage(schoolLogo, 'JPEG', ML + 2, y, 16, 16); } catch {}
+    try { doc.addImage(schoolLogo, 'JPEG', PW - ML - 18, y, 16, 16); } catch {}
   }
 
   doc.setFontSize(13);
@@ -154,13 +133,9 @@ function renderStudentResult(
   doc.text('REPORT – CARD', PW / 2, y, { align: 'center' });
   y += 5;
 
-  // ────────────────────────────────────────────
-  // TABLE 1: Examination info + Student details
-  // ────────────────────────────────────────────
-  const rh = 6; // row height
+  const rh = 6;
   doc.setFontSize(7);
 
-  // Row: Examination | (value) | Year | (value)
   const t1cols = [CW * 0.15, CW * 0.35, CW * 0.1, CW * 0.4];
   doc.rect(ML, y, t1cols[0], rh);
   doc.rect(ML + t1cols[0], y, t1cols[1], rh);
@@ -177,7 +152,6 @@ function renderStudentResult(
   doc.text(sessionYear, ML + t1cols[0] + t1cols[1] + t1cols[2] + 2, y + 4);
   y += rh;
 
-  // Student info: Left panel (Name, Father, Mother, DOB) | Right panel (Class, Roll, Adm)
   const leftW = CW * 0.65;
   const rightW = CW * 0.35;
   const infoH = 24;
@@ -211,7 +185,6 @@ function renderStudentResult(
   doc.setFont('helvetica', 'normal');
   doc.text(student.dob || '', lx + valOffset, y + 20);
 
-  // Right side
   doc.setFont('helvetica', 'bold');
   doc.text('Class :', rx, y + 5);
   doc.setFont('helvetica', 'normal');
@@ -229,17 +202,12 @@ function renderStudentResult(
 
   y += infoH + 1;
 
-  // ────────────────────────────────────────────
-  // TABLE 2: SCHOLASTIC AREAS
-  // ────────────────────────────────────────────
   const cellH = 5;
 
-  // Split subjects into main and additional
   const mainSubjects = subjectNames.filter(s => !isAdditionalSubject(s));
   const additionalSubjects = subjectNames.filter(s => isAdditionalSubject(s));
 
-  // Determine columns for MAIN subjects based on result type
-  const subColW = 28; // subject name column width
+  const subColW = 28;
   let scoreCols: { label: string; key: string; w: number; maxMarks?: string }[];
   
   if (resultType === 'FIRST_TERM') {
@@ -270,7 +238,6 @@ function renderStudentResult(
     ];
   }
 
-  // Columns for ADDITIONAL subjects (simpler: SA out of 50, Total, Grade — no PT/NB/SEA)
   let addScoreCols: { label: string; key: string; w: number; maxMarks?: string }[];
   if (resultType === 'FIRST_TERM') {
     const remW = CW - subColW;
@@ -294,7 +261,6 @@ function renderStudentResult(
     ];
   }
 
-  // ── Helper: render a subject table (reused for main and additional) ──
   function renderSubjectTable(
     subjects: string[],
     cols: { label: string; key: string; w: number; maxMarks?: string }[],
@@ -306,7 +272,6 @@ function renderStudentResult(
     let tblTotalMax = 0;
     let tblSubjectCount = 0;
 
-    // Title row
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(7);
     doc.setFillColor(230, 230, 230);
@@ -314,12 +279,10 @@ function renderStudentResult(
     doc.text(title, PW / 2, y + 3.5, { align: 'center' });
     y += cellH + 1;
 
-    // Header rows
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(6);
 
     if (resultType === 'FINAL' && !isAdditional) {
-      // Multi-level header for final main subjects
       doc.rect(ML, y, subColW, cellH * 2);
       doc.text('Subject', ML + 2, y + cellH);
       
@@ -350,7 +313,6 @@ function renderStudentResult(
       }
       y += cellH;
     } else if (resultType === 'FINAL' && isAdditional) {
-      // Multi-level header for final additional subjects
       doc.rect(ML, y, subColW, cellH * 2);
       doc.text('Subject', ML + 2, y + cellH);
       
@@ -381,7 +343,6 @@ function renderStudentResult(
       }
       y += cellH;
     } else {
-      // Single header row for 1st Term
       doc.rect(ML, y, subColW, cellH * 2);
       doc.text('Subject', ML + 2, y + cellH);
 
@@ -394,7 +355,6 @@ function renderStudentResult(
       y += cellH * 2;
     }
 
-    // Max marks row
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(5);
     doc.rect(ML, y, subColW, cellH);
@@ -409,7 +369,6 @@ function renderStudentResult(
     }
     y += cellH;
 
-    // Subject data rows
     doc.setFontSize(6);
 
     for (const subject of subjects) {
@@ -435,8 +394,6 @@ function renderStudentResult(
         return marks[key];
       };
 
-      // For additional subjects: the total IS the SA mark (out of 50)
-      // For main subjects: total is PT+NB+SEA+SA (out of 100)
       const mainTermTotal = parseFloat(String(
         resultType === 'FIRST_TERM'
           ? (marks['1T_1st Term'] || marks['1T_Total'] || marks['1st Term'] || marks['Total'] || '')
@@ -490,7 +447,6 @@ function renderStudentResult(
         sx += col.w;
       }
 
-      // Accumulate totals
       if (resultType === 'FINAL') {
         if (computedGrandTotal > 0) {
           tblTotalObtained += computedGrandTotal;
@@ -511,7 +467,6 @@ function renderStudentResult(
     return { y, totalObtained: tblTotalObtained, totalMax: tblTotalMax, subjectCount: tblSubjectCount };
   }
 
-  // ── Render Main Subjects Table ──
   let totalObtained = 0;
   let totalMax = 0;
   let subjectCount = 0;
@@ -524,7 +479,6 @@ function renderStudentResult(
     subjectCount += r.subjectCount;
   }
 
-  // ── Render Additional Subjects Table (if any) ──
   if (additionalSubjects.length > 0) {
     const r = renderSubjectTable(additionalSubjects, addScoreCols, 'ADDITIONAL SUBJECTS', true, 50);
     y = r.y;
@@ -533,7 +487,6 @@ function renderStudentResult(
     subjectCount += r.subjectCount;
   }
 
-  // ── Grading Scale Row ──
   doc.setFontSize(4.5);
   doc.setFont('helvetica', 'italic');
   doc.rect(ML, y, CW, cellH);
@@ -543,7 +496,6 @@ function renderStudentResult(
   );
   y += cellH;
 
-  // ── Overall Performance ──
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(7);
   doc.setFillColor(230, 230, 230);
@@ -586,7 +538,6 @@ function renderStudentResult(
   }
   y += cellH + 1;
 
-  // ── Attendance ──
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(7);
   doc.setFillColor(230, 230, 230);
@@ -617,16 +568,12 @@ function renderStudentResult(
   }
   y += cellH + 2;
 
-  // ────────────────────────────────────────────
-  // TABLE 3: CO-SCHOLASTIC + DISCIPLINE (side by side)
-  // ────────────────────────────────────────────
   const halfW = CW / 2;
   const coItemW = halfW * 0.72;
   const coGradeW = halfW * 0.28;
 
   const termLabel = resultType === 'FIRST_TERM' ? 'Term 1' : 'Term 2';
 
-  // Title row
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(5.5);
 
@@ -642,7 +589,6 @@ function renderStudentResult(
   doc.text('(3 Point Grading Scale A, B, C)', ML + halfW + halfW / 2, y + 6, { align: 'center' });
   y += cellH + 2;
 
-  // Sub-header: Term | Grade | Term | Grade
   doc.setFontSize(5.5);
   doc.setFont('helvetica', 'bold');
   doc.rect(ML, y, coItemW, cellH);
@@ -655,7 +601,6 @@ function renderStudentResult(
   doc.text('Grade', ML + halfW + coItemW + coGradeW / 2, y + 3.5, { align: 'center' });
   y += cellH;
 
-  // Co-scholastic + Discipline rows
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(5);
   const maxRows = Math.max(CO_SCHOLASTIC_ITEMS.length, DISCIPLINE_ITEMS.length);
@@ -667,7 +612,6 @@ function renderStudentResult(
 
     if (i < CO_SCHOLASTIC_ITEMS.length) {
       doc.text(CO_SCHOLASTIC_ITEMS[i], ML + 2, y + 3.5);
-      // Fill co-scholastic grade
       const coGrade = student.coScholastic?.[CO_SCHOLASTIC_ITEMS[i]] || '';
       if (coGrade) {
         doc.text(coGrade, ML + coItemW + coGradeW / 2, y + 3.5, { align: 'center' });
@@ -675,7 +619,6 @@ function renderStudentResult(
     }
     if (i < DISCIPLINE_ITEMS.length) {
       doc.text(DISCIPLINE_ITEMS[i], ML + halfW + 2, y + 3.5);
-      // Fill discipline grade
       const discGrade = student.discipline?.[DISCIPLINE_ITEMS[i]] || '';
       if (discGrade) {
         doc.text(discGrade, ML + halfW + coItemW + coGradeW / 2, y + 3.5, { align: 'center' });
@@ -686,9 +629,6 @@ function renderStudentResult(
 
   y += 2;
 
-  // ────────────────────────────────────────────
-  // TABLE 4: SIGNATURES
-  // ────────────────────────────────────────────
   const sigW = CW / 3;
   const sigH = 14;
 
@@ -696,11 +636,10 @@ function renderStudentResult(
   doc.rect(ML + sigW, y, sigW, sigH);
   doc.rect(ML + 2 * sigW, y, sigW, sigH);
 
-  // Add principal's signature image in the Principal's box
   if (principalSign) {
     try {
       doc.addImage(principalSign, 'PNG', ML + 2 * sigW + (sigW - 20) / 2, y + 1, 20, 8);
-    } catch { /* skip */ }
+    } catch {}
   }
 
   doc.setFont('helvetica', 'bold');
@@ -710,9 +649,6 @@ function renderStudentResult(
   doc.text("Principal's Signature", ML + 2 * sigW + sigW / 2, y + sigH - 2, { align: 'center' });
 }
 
-/**
- * Generate the PDF filename with proper .pdf extension
- */
 export function getResultFileName(resultType: ResultType, sessionYear: string): string {
   const prefix = resultType === 'FIRST_TERM' ? '1st_term_results' : 'final_results';
   const sanitizedYear = sessionYear.replace(/[^a-zA-Z0-9_-]/g, '_');

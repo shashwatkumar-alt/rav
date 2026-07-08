@@ -4,7 +4,6 @@ export function getJwtSecret(): Uint8Array {
     return new TextEncoder().encode(secret);
   }
 
-  // Fallback: derive secret from admin credentials to ensure production works even if JWT_SECRET is missing
   const username = process.env.ADMIN_USERNAME;
   const password = process.env.ADMIN_PASSWORD;
   
@@ -14,7 +13,7 @@ export function getJwtSecret(): Uint8Array {
     throw new Error(errorMsg);
   }
 
-  // Derive a consistent, secure secret from credentials + salt
+  // Derive fallback secret from credentials and salt
   const derivedSecret = `${username}:${password}:rav-school-salt-key-2026`;
   return new TextEncoder().encode(derivedSecret);
 }

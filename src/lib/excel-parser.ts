@@ -1,9 +1,6 @@
 import * as XLSX from 'xlsx';
 import type { ParsedWorkbook, SheetData, StudentData, ValidationError, ColumnMapping, AttendanceData } from './types';
 
-// ============================================================
-// Known metadata column patterns (case-insensitive matching)
-// ============================================================
 const METADATA_PATTERNS: Record<string, RegExp[]> = {
   name: [/^(student('?s?)?\s*name|name)$/i],
   fatherName: [/^(father('?s?)?\s*name)$/i],
@@ -51,7 +48,6 @@ const NON_SUBJECT_PATTERNS: RegExp[] = [
   ...Object.values(METADATA_PATTERNS).flat(),
 ];
 
-// Score type patterns — sub-columns under each subject
 const SCORE_TYPE_PATTERNS: RegExp[] = [
   /^pt(\s*\(\d+\))?$/i,
   /^nb(\s*\(\d+\))?$/i,
@@ -60,7 +56,7 @@ const SCORE_TYPE_PATTERNS: RegExp[] = [
   /^s\.?e\.?a\.?(\s*\(\d+\))?$/i,
   /^sa[\s-]?(i{1,2}|1|2)(\s*\(\d+\))?$/i,
   /^sa(\s*\(\d+\))?$/i,
-  /^f(\s*\(\d+\))$/i,  // F (60) — only match with parentheses
+  /^f(\s*\(\d+\))$/i,
   /^total(\s*avg)?$/i,
   /^1st\s*term$/i,
   /^2nd\s*term$/i,
@@ -73,12 +69,11 @@ const SCORE_TYPE_PATTERNS: RegExp[] = [
   /^final\s*grade$/i,
   /^total\s*avg$/i,
   /^av$/i,
-  /^gr\s?\w*$/i,  // GR EN, GR HN, GR MTH, etc.
+  /^gr\s?\w*$/i,
   /^ts$/i,
   /^mx$/i,
 ];
 
-// Term group headers (Row 1 in the 3-row format) — NOT score types
 const TERM_GROUP_PATTERNS: RegExp[] = [
   /^1st\s*term$/i,
   /^2nd\s*term$/i,
@@ -87,9 +82,6 @@ const TERM_GROUP_PATTERNS: RegExp[] = [
   /^term\s*(i{1,2}|1|2)$/i,
 ];
 
-// ============================================================
-// Co-scholastic item mapping: Excel abbreviation -> display name
-// ============================================================
 const CO_SCHOLASTIC_MAP: { pattern: RegExp; name: string }[] = [
   { pattern: /^we/i, name: 'Work education' },
   { pattern: /^ae/i, name: 'Art Education' },
@@ -100,7 +92,6 @@ const CO_SCHOLASTIC_MAP: { pattern: RegExp; name: string }[] = [
   { pattern: /^yoga/i, name: 'Yoga /NCC' },
 ];
 
-// Discipline item mapping
 const DISCIPLINE_MAP: { pattern: RegExp; name: string }[] = [
   { pattern: /^reg/i, name: 'Regularity and punctuality' },
   { pattern: /^sincr/i, name: 'Sincerity' },
@@ -140,7 +131,7 @@ function normalizeScoreType(raw: string): string {
   if (/^sa[\s-]?i$/i.test(t) || /^sa[\s-]?1$/i.test(t)) return 'SA-I';
   if (/^sa[\s-]?ii$/i.test(t) || /^sa[\s-]?2$/i.test(t)) return 'SA-II';
   if (/^sa/i.test(t)) return 'SA';
-  if (/^f\s*\(\d+\)/i.test(t)) return 'SA-I'; // F (60) = the main exam (SA)
+  if (/^f\s*\(\d+\)/i.test(t)) return 'SA-I';
   if (/^total\s*avg$/i.test(t)) return 'Total';
   if (/^total$/i.test(t)) return 'Total';
   if (/^1st\s*term$/i.test(t)) return '1st Term';
@@ -159,18 +150,11 @@ function isBlankOrEmpty(val: string): boolean {
   return !val || val.startsWith('__EMPTY');
 }
 
-/**
- * Convert an Excel serial date number to a DD/MM/YYYY string.
- */
 function excelSerialToDate(serial: number): string {
-  // Guard against invalid serial numbers
   if (!Number.isFinite(serial) || serial <= 0) return '';
-  // Excel serial date: days since 1900-01-01 (with Lotus 1-2-3 leap year bug)
-  // The bug counts 29 Feb 1900 as a valid date, so for serial > 59 we subtract 1
   const adjustedSerial = serial > 59 ? serial - 1 : serial;
-  const epoch = new Date(1900, 0, 1); // Jan 1, 1900
+  const epoch = new Date(1900, 0, 1);
   const date = new Date(epoch.getTime() + (adjustedSerial - 1) * 86400000);
-  // Verify the resulting date is valid
   if (isNaN(date.getTime())) return String(serial);
   const dd = String(date.getDate()).padStart(2, '0');
   const mm = String(date.getMonth() + 1).padStart(2, '0');
@@ -178,46 +162,29 @@ function excelSerialToDate(serial: number): string {
   return `${dd}/${mm}/${yyyy}`;
 }
 
-/**
- * Format a DOB value — handles Excel serial numbers, Date objects, and strings.
- */
 function formatDOB(val: unknown): string {
   if (val === null || val === undefined || val === '') return '';
-  
-  // If it's a number, it's likely an Excel serial date
   if (typeof val === 'number' && val > 0 && val < 100000) {
     return excelSerialToDate(val);
   }
-  
-  // If it's a Date object
   if (val instanceof Date) {
-    // Guard against invalid Date objects
     if (isNaN(val.getTime())) return '';
     const dd = String(val.getDate()).padStart(2, '0');
     const mm = String(val.getMonth() + 1).padStart(2, '0');
     const yyyy = val.getFullYear();
     return `${dd}/${mm}/${yyyy}`;
   }
-  
-  // If it's a string that looks like a number (serial date as string)
   const str = String(val).trim();
   const num = parseFloat(str);
   if (!isNaN(num) && num > 1000 && num < 100000 && str === String(num)) {
     return excelSerialToDate(num);
   }
-  
   return str;
 }
 
-/**
- * Detect the number of header rows in a sheet.
- * The row with the MOST score type matches is the last header row.
- * We check up to 4 rows.
- */
 function detectHeaderRowCount(rows: (string | number | undefined)[][]): number {
   let bestRow = 0;
   let bestCount = 0;
-  
   for (let r = 0; r < Math.min(rows.length, 5); r++) {
     const rowVals = (rows[r] || []).map((v) => String(v ?? '').trim());
     const scoreTypeCount = rowVals.filter((v) => v && isScoreType(v)).length;
@@ -226,22 +193,9 @@ function detectHeaderRowCount(rows: (string | number | undefined)[][]): number {
       bestRow = r;
     }
   }
-  
-  // If the best row has at least 3 score types, use it
-  if (bestCount >= 3) {
-    return bestRow + 1;
-  }
-  
-  // Default: assume 1 header row
-  return 1;
+  return bestCount >= 3 ? bestRow + 1 : 1;
 }
 
-
-/**
- * Parse co-scholastic or discipline grades from a section of the sheet.
- * The section has pairs of columns: MX (marks number), GR (grade letter).
- * We match the item headers from the row above (row 1 of headers) to map them.
- */
 function parseGradedSection(
   headerRows: string[][],
   dataRow: (string | number | undefined)[],
@@ -251,38 +205,19 @@ function parseGradedSection(
   resultType: 'FIRST_TERM' | 'FINAL'
 ): Record<string, string> {
   const result: Record<string, string> = {};
-
-  // Scan header rows for item names in the section range
-  // The item names are typically in row 1 (e.g., "WE (TERM 1)", "AE (TERM 2)")
-  // or row 11 in the SA-II format (e.g., "WE", "AE")
-  // Each item has MX and GR sub-columns
-
-  // Strategy: Find GR columns and look at the row above to determine which item
   for (let c = sectionStartCol; c <= sectionEndCol; c++) {
-    // Look for "GR" label in the last header row (score type row)
     const lastRow = headerRows[headerRows.length - 1];
     const val = (c < lastRow.length ? lastRow[c] : '').toUpperCase().trim();
-    
     if (val === 'GR') {
-      // Found a GR column — determine which item this belongs to
-      // Check the row above for the item label
       for (let r = 0; r < headerRows.length - 1; r++) {
         const label = (c < headerRows[r].length ? headerRows[r][c] : '').trim();
         const prevLabel = (c - 1 >= 0 && c - 1 < headerRows[r].length ? headerRows[r][c - 1] : '').trim();
-        // The label might be on the MX column (c-1) due to merged cells, or on GR itself
         const checkLabel = label || prevLabel;
-        
         if (checkLabel) {
-          // Determine if this is term 1 or term 2
           const isTerm1 = /term\s*1|term\s*i(?!i)/i.test(checkLabel);
           const isTerm2 = /term\s*2|term\s*ii/i.test(checkLabel);
-          
-          // Only use data for the correct term
           if (resultType === 'FIRST_TERM' && isTerm2) continue;
           if (resultType === 'FINAL' && isTerm1) continue;
-          
-          // If no term specified, and there's both terms, we want the correct one
-          // Match the item
           for (const item of itemMap) {
             if (item.pattern.test(checkLabel)) {
               const gradeVal = String(dataRow[c] ?? '').trim();
@@ -292,57 +227,40 @@ function parseGradedSection(
               break;
             }
           }
-          break; // found the label row
+          break;
         }
       }
-
-      // If we didn't find a label in rows above, try matching by position
-      // (items go in order within the section)
     }
   }
 
-  // Fallback: if we got nothing from label matching, try positional matching
-  // Collect all GR column values in order and map them to items
   if (Object.keys(result).length === 0) {
     const grValues: string[] = [];
     const lastRow = headerRows[headerRows.length - 1];
-    
     for (let c = sectionStartCol; c <= sectionEndCol; c++) {
       const val = (c < lastRow.length ? lastRow[c] : '').toUpperCase().trim();
       if (val === 'GR') {
         grValues.push(String(dataRow[c] ?? '').trim());
       }
     }
-
-    // For sections with Term 1 + Term 2 alternating, GR values alternate:
-    // Term1 GR, Term2 GR, Term1 GR, Term2 GR, ...
-    // Or they might be grouped: all Term1 then all Term2
     if (grValues.length === itemMap.length * 2) {
-      // Alternating pattern: item1-T1, item1-T2, item2-T1, item2-T2, ...
       const offset = resultType === 'FIRST_TERM' ? 0 : 1;
       for (let i = 0; i < itemMap.length; i++) {
         const val = grValues[i * 2 + offset];
         if (val) result[itemMap[i].name] = val;
       }
     } else if (grValues.length === itemMap.length) {
-      // One value per item (single term)
       for (let i = 0; i < itemMap.length; i++) {
         if (grValues[i]) result[itemMap[i].name] = grValues[i];
       }
     } else if (grValues.length > 0) {
-      // Best effort: map whatever we have
       for (let i = 0; i < Math.min(grValues.length, itemMap.length); i++) {
         if (grValues[i]) result[itemMap[i].name] = grValues[i];
       }
     }
   }
-
   return result;
 }
 
-/**
- * Parse attendance data from the attendance section columns.
- */
 function parseAttendance(
   headerRows: string[][],
   dataRow: (string | number | undefined)[],
@@ -357,19 +275,16 @@ function parseAttendance(
   };
 
   const lastRow = headerRows[headerRows.length - 1];
-  
   for (let c = attendanceStartCol; c <= attendanceEndCol; c++) {
     const headerVal = (c < lastRow.length ? lastRow[c] : '').trim().toUpperCase();
     const cellVal = dataRow[c];
     const strVal = cellVal !== undefined && cellVal !== null && cellVal !== '' ? String(cellVal).trim() : '';
-    
     if (/^(working|days)$/i.test(headerVal) || /^total$/i.test(headerVal)) {
       if (!attendance.workingDays && strVal) attendance.workingDays = strVal;
       else if (attendance.workingDays && !attendance.daysAttended && strVal) attendance.daysAttended = strVal;
     } else if (/^(attend|attain)/i.test(headerVal)) {
       attendance.daysAttended = strVal;
     } else if (headerVal === '%') {
-      // Format percentage
       const pctNum = parseFloat(strVal);
       attendance.percentage = !isNaN(pctNum) ? pctNum.toFixed(2) + '%' : strVal;
     } else if (/^remarks?$/i.test(headerVal)) {
@@ -377,8 +292,6 @@ function parseAttendance(
     }
   }
 
-  // If we still don't have separated working/attended, try positional approach
-  // Typical order: TOTAL/WORKING DAYS, TOTAL/ATTENDED, %, REMARKS
   if (!attendance.workingDays || !attendance.daysAttended) {
     const values: string[] = [];
     for (let c = attendanceStartCol; c <= attendanceEndCol; c++) {
@@ -400,14 +313,9 @@ function parseAttendance(
       }
     }
   }
-
   return attendance;
 }
 
-/**
- * Parse an Excel workbook buffer into structured data.
- * Handles multi-row merged headers (2 or 3 rows).
- */
 export function parseWorkbook(
   buffer: ArrayBuffer,
   fileName: string
@@ -441,7 +349,6 @@ export function parseWorkbook(
   const sheets: SheetData[] = [];
 
   for (const sheetName of workbook.SheetNames) {
-    // Skip sheets starting with "SPARE" (template/spare sheets)
     if (sheetName.toUpperCase().startsWith('SPARE')) continue;
     if (sheetName.toUpperCase() === 'SHEET1') continue;
 
@@ -451,7 +358,6 @@ export function parseWorkbook(
       continue;
     }
 
-    // Read as array-of-arrays to handle merged headers
     const rawRows: (string | number | undefined)[][] = XLSX.utils.sheet_to_json(
       worksheet, { header: 1, defval: '' }
     );
@@ -466,24 +372,19 @@ export function parseWorkbook(
       (row) => (row || []).map((v) => String(v ?? '').trim())
     );
 
-    // ── Build column mappings ──
     const columnMappings: ColumnMapping[] = [];
     const metadataColumns: string[] = [];
     const metadataMap: Record<number, string> = {};
     const subjectNames: string[] = [];
     const scoreTypesSet = new Set<string>();
 
-    // The LAST header row is the score type / column definition row
     const scoreTypeRow = headerRows[headerRowCount - 1];
     
-    // ── Identify special section boundaries ──
-    // Find CO-SCHOLASTIC AREAS, DISCIPLINE, ATTENDANCE sections from row 0 or 1
     let coScholasticStartCol = -1;
     let disciplineStartCol = -1;
     let attendanceStartCol = -1;
     let grandScoreStartCol = -1;
     
-    // Also track SUPW, RANK, REMARK columns from the score type row
     let supwCol = -1;
     let supwTerm1Col = -1;
     let supwTerm2Col = -1;
@@ -491,7 +392,6 @@ export function parseWorkbook(
     let rankCol = -1;
     let remarkCol = -1;
     
-    // Scan all header rows for section headers
     for (let r = 0; r < headerRows.length; r++) {
       for (let c = 0; c < headerRows[r].length; c++) {
         const h = headerRows[r][c].toUpperCase();
@@ -510,7 +410,6 @@ export function parseWorkbook(
       }
     }
     
-    // Scan score type row for SUPW, RANK, REMARK
     for (let c = 0; c < scoreTypeRow.length; c++) {
       const h = scoreTypeRow[c].toUpperCase().trim();
       if (/^SUPW$/i.test(h)) supwCol = c;
@@ -518,16 +417,10 @@ export function parseWorkbook(
       if (/^remarks?$/i.test(h) && c < (attendanceStartCol > 0 ? attendanceStartCol : 999)) remarkCol = c;
     }
     
-    // Scan all header rows for SUPW section header (row 0 typically has "SUPW")
-    // It has sub-columns: "1ST TERM", "2ND TERM", "FINAL" in row 1
-    // and "MARKS (100)" in the score type row
     for (let r = 0; r < headerRows.length; r++) {
       for (let c = 0; c < headerRows[r].length; c++) {
         if (/^SUPW$/i.test(headerRows[r][c].trim())) {
-          // Found SUPW section — now find sub-columns in the rows below
-          // Look at the next row for term labels
           if (r + 1 < headerRows.length) {
-            // Scan a few columns from the SUPW position
             for (let sc = c; sc < Math.min(c + 5, headerRows[r + 1].length); sc++) {
               const subH = headerRows[r + 1][sc].trim().toUpperCase();
               if (/1ST\s*TERM/i.test(subH)) supwTerm1Col = sc;
@@ -535,7 +428,6 @@ export function parseWorkbook(
               else if (/^FINAL$/i.test(subH)) supwFinalCol = sc;
             }
           }
-          // If no sub-columns found (single column SUPW), use the main column
           if (supwTerm1Col === -1 && supwTerm2Col === -1 && supwFinalCol === -1) {
             supwCol = c;
           }
@@ -545,15 +437,12 @@ export function parseWorkbook(
       if (supwTerm1Col >= 0 || supwCol >= 0) break;
     }
 
-    // Determine section boundaries
     const allSectionStarts = [coScholasticStartCol, disciplineStartCol, attendanceStartCol, grandScoreStartCol]
       .filter(c => c >= 0)
       .sort((a, b) => a - b);
     
-    // Find the end of subject columns: the first section start
     const subjectEndCol = allSectionStarts.length > 0 ? Math.min(...allSectionStarts) - 1 : scoreTypeRow.length - 1;
 
-    // Calculate end columns for each section
     const getNextSectionStart = (currentStart: number): number => {
       const nextStarts = allSectionStarts.filter(c => c > currentStart);
       return nextStarts.length > 0 ? nextStarts[0] - 1 : scoreTypeRow.length - 1;
@@ -563,7 +452,6 @@ export function parseWorkbook(
     const coScholasticEndCol = coScholasticStartCol >= 0 ? getNextSectionStart(coScholasticStartCol) : -1;
     const disciplineEndCol = disciplineStartCol >= 0 ? getNextSectionStart(disciplineStartCol) : -1;
     
-    // Identify metadata columns from the LAST header row (where field names live)
     for (let col = 0; col < scoreTypeRow.length; col++) {
       const val = scoreTypeRow[col];
       if (!val || isBlankOrEmpty(val)) continue;
@@ -575,22 +463,19 @@ export function parseWorkbook(
     }
 
     if (headerRowCount >= 2) {
-      // Multi-row header mode
-      const subjectRow = headerRows[0]; // Subjects are always in the first row
-      const termRow = headerRowCount >= 2 ? headerRows[1] : null; // Row 1 has term groups
+      const subjectRow = headerRows[0];
+      const termRow = headerRowCount >= 2 ? headerRows[1] : null;
       
       let currentSubject = '';
-      let currentTermGroup = ''; // tracks "1ST TERM", "2ND TERM", "FINAL RESULT" etc.
+      let currentTermGroup = '';
 
       const colCount = headerRows.length > 0 ? Math.max(0, ...headerRows.map(r => r.length)) : 0;
       for (let col = 0; col < Math.min(colCount, subjectEndCol + 1); col++) {
-        // If this column is already identified as metadata, skip
         if (metadataMap[col]) continue;
 
         const subjectVal = col < subjectRow.length ? subjectRow[col] : '';
         const scoreVal = col < scoreTypeRow.length ? scoreTypeRow[col] : '';
         
-        // Forward-fill term group from row 1
         if (termRow && col < termRow.length) {
           const termVal = termRow[col];
           if (termVal && !isBlankOrEmpty(termVal) && TERM_GROUP_PATTERNS.some(p => p.test(termVal))) {
@@ -598,7 +483,6 @@ export function parseWorkbook(
           }
         }
         
-        // Determine term prefix from current term group
         let termPrefix: string | undefined;
         if (/1st\s*term/i.test(currentTermGroup)) {
           termPrefix = '1T_';
@@ -608,16 +492,12 @@ export function parseWorkbook(
           termPrefix = 'FR_';
         }
         
-        // Check if the score type row value is a non-subject / metadata
         if (scoreVal && isMetadataOrNonSubject(scoreVal) && !isScoreType(scoreVal)) {
           continue;
         }
 
-        // Update current subject from subject row (forward-fill blanks)
         if (subjectVal && !isBlankOrEmpty(subjectVal) && !isMetadataOrNonSubject(subjectVal) && !isScoreType(subjectVal)) {
-          // Ignore if it's just the class name (sheet name) in row 0
           if (subjectVal.toUpperCase() !== sheetName.toUpperCase() && subjectVal.toUpperCase() !== 'STUDENTS DETAILS') {
-            // Also ignore term group labels in row 0
             if (!TERM_GROUP_PATTERNS.some(p => p.test(subjectVal))) {
               currentSubject = subjectVal;
               if (!subjectNames.includes(currentSubject)) {
@@ -627,7 +507,6 @@ export function parseWorkbook(
           }
         }
 
-        // Map the score type column
         if (currentSubject && scoreVal && !isBlankOrEmpty(scoreVal) && isScoreType(scoreVal)) {
           const scoreType = normalizeScoreType(scoreVal);
           scoreTypesSet.add(scoreType);
@@ -636,7 +515,6 @@ export function parseWorkbook(
       }
 
     } else {
-      // Single-row header mode (simple flat headers)
       const headers = headerRows[0];
       for (let col = 0; col < headers.length; col++) {
         const h = headers[col];
@@ -650,7 +528,6 @@ export function parseWorkbook(
       }
     }
 
-    // ── Parse student data rows ──
     const dataStartRow = headerRowCount;
     const students: StudentData[] = [];
     const sheetErrors: ValidationError[] = [];
@@ -659,23 +536,19 @@ export function parseWorkbook(
       const row = rawRows[rowIdx];
       if (!row) continue;
 
-      // Skip entirely empty rows
       const hasAnyData = row.some((cell) =>
         cell !== undefined && cell !== null && cell !== '' &&
         (typeof cell === 'number' || String(cell).trim().length > 0)
       );
       if (!hasAnyData) continue;
 
-      // Skip rows that look like headers (e.g., the 3rd header row that was missed)
       const firstCellStr = String(row[0] ?? '').trim().toUpperCase();
       if (/^(REGD?\s*NO\.?|S\.?\s*NO\.?|SR\.?\s*NO\.?|SL\.?\s*NO\.?|SERIAL\s*(NO\.?|NUMBER))$/i.test(firstCellStr)) {
-        continue; // This is a header row, not data
+        continue;
       }
       
-      // Also skip rows that are section headers (e.g., "CLASS II", "ACADEMIC PERFORMANCE")
       const secondCellStr = String(row[1] ?? '').trim().toUpperCase();
       if (secondCellStr.startsWith('CLASS ')) continue;
-      // Check all cells in the row for ACADEMIC PERFORMANCE (not just column 14)
       const rowHasAcademicPerformance = row.some(cell => /ACADEMIC\s*PERFORMANCE/i.test(String(cell ?? '')));
       if (rowHasAcademicPerformance) continue;
 
@@ -692,7 +565,6 @@ export function parseWorkbook(
         extras: {},
       };
 
-      // Fill metadata
       for (const [colStr, metaField] of Object.entries(metadataMap)) {
         const colIdx = parseInt(colStr, 10);
         const rawVal = row[colIdx];
@@ -707,28 +579,21 @@ export function parseWorkbook(
         }
       }
 
-      // Skip students with no name
       if (!student.name && !student.rollNo) continue;
 
-      // Fill subject marks
       for (const mapping of columnMappings) {
         const cellValue = row[mapping.colIndex];
         if (!student.subjects[mapping.subject]) {
           student.subjects[mapping.subject] = {};
         }
-        // Store with standard key (may be overwritten by later columns for same key)
         student.subjects[mapping.subject][mapping.scoreType] = cellValue ?? '';
-        // Also store with term-prefixed key for precise term selection
         if (mapping.termGroup) {
           student.subjects[mapping.subject][mapping.termGroup + mapping.scoreType] = cellValue ?? '';
         }
       }
       
-      // Fill SUPW — pick the right column based on available data
       if (supwTerm1Col >= 0) {
-        // Store all three SUPW term values for the PDF generator to pick
         student.supw = String(row[supwTerm1Col] ?? '').trim();
-        // Store term2 and final in extras for the PDF generator
         if (supwTerm2Col >= 0) student.extras['supw_term2'] = String(row[supwTerm2Col] ?? '').trim();
         if (supwFinalCol >= 0) student.extras['supw_final'] = String(row[supwFinalCol] ?? '').trim();
       } else if (supwCol >= 0) {
@@ -737,20 +602,17 @@ export function parseWorkbook(
       if (rankCol >= 0) student.rank = String(row[rankCol] ?? '').trim();
       if (remarkCol >= 0) student.overallRemarks = String(row[remarkCol] ?? '').trim();
       
-      // Fill attendance
       if (attendanceStartCol >= 0) {
         student.attendance = parseAttendance(headerRows, row, attendanceStartCol, attendanceEndCol);
       }
       
-      // Fill co-scholastic grades
       if (coScholasticStartCol >= 0) {
         student.coScholastic = parseGradedSection(
           headerRows, row, coScholasticStartCol, coScholasticEndCol,
-          CO_SCHOLASTIC_MAP, 'FINAL' // default to FINAL to get term 2 grades; term selection is done at render time
+          CO_SCHOLASTIC_MAP, 'FINAL'
         );
       }
       
-      // Fill discipline grades
       if (disciplineStartCol >= 0) {
         student.discipline = parseGradedSection(
           headerRows, row, disciplineStartCol, disciplineEndCol,
@@ -761,7 +623,6 @@ export function parseWorkbook(
       students.push(student);
     }
 
-    // Add validation warnings for sheets with no students or no subjects detected
     if (students.length === 0) {
       sheetErrors.push({ sheet: sheetName, message: `Sheet "${sheetName}" has no student data rows.`, severity: 'warning' });
     }

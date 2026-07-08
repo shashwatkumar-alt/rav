@@ -1,7 +1,3 @@
-// ============================================================
-// Grading Logic — from school's official template
-// ============================================================
-
 export interface GradeInfo {
   grade: string;
   minPercent: number;

@@ -22,7 +22,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if credentials are set in the server environment before validation
     const adminUser = process.env.ADMIN_USERNAME;
     const adminPass = process.env.ADMIN_PASSWORD;
     if (!adminUser || !adminPass) {
