@@ -22,6 +22,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check if credentials are set in the server environment before validation
+    const adminUser = process.env.ADMIN_USERNAME;
+    const adminPass = process.env.ADMIN_PASSWORD;
+    if (!adminUser || !adminPass) {
+      return NextResponse.json(
+        { error: 'Server configuration error: ADMIN_USERNAME or ADMIN_PASSWORD is not set in the production environment.' },
+        { status: 500 }
+      );
+    }
+
     const isValid = await validateCredentials(username, password);
     if (!isValid) {
       return NextResponse.json(
@@ -35,8 +45,9 @@ export async function POST(request: NextRequest) {
       token = await signToken();
     } catch (err) {
       console.error('Failed to sign token:', err);
+      const details = err instanceof Error ? err.message : String(err);
       return NextResponse.json(
-        { error: 'Server configuration error. Contact administrator.' },
+        { error: `Server configuration error: Failed to sign token. Details: ${details}` },
         { status: 500 }
       );
     }

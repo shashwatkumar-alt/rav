@@ -1,13 +1,6 @@
 import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
-
-function getJwtSecret(): Uint8Array {
-  const secret = process.env.JWT_SECRET;
-  if (!secret) {
-    throw new Error('JWT_SECRET environment variable is not set');
-  }
-  return new TextEncoder().encode(secret);
-}
+import { getJwtSecret } from './jwt-secret';
 
 const COOKIE_NAME = 'rav-auth-token';
 

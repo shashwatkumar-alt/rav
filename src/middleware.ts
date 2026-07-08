@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
+import { getJwtSecret } from './lib/jwt-secret';
 
 const COOKIE_NAME = 'rav-auth-token';
 
@@ -25,20 +26,11 @@ export async function middleware(request: NextRequest) {
   }
 
   try {
-    const jwtSecret = process.env.JWT_SECRET;
-    if (!jwtSecret) {
-      // If JWT_SECRET is not configured, reject all tokens — never fall back to a known secret
-      console.error('JWT_SECRET environment variable is not set');
-      if (pathname.startsWith('/api/')) {
-        return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
-      }
-      return NextResponse.redirect(new URL('/', request.url));
-    }
-
-    const secret = new TextEncoder().encode(jwtSecret);
+    const secret = getJwtSecret();
     await jwtVerify(token, secret);
     return NextResponse.next();
-  } catch {
+  } catch (err) {
+    console.error('Auth verification error in middleware:', err);
     if (pathname.startsWith('/api/')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
