@@ -209,6 +209,7 @@ function parseGradedSection(
     const lastRow = headerRows[headerRows.length - 1];
     const val = (c < lastRow.length ? lastRow[c] : '').toUpperCase().trim();
     if (val === 'GR') {
+      let skipColumn = false;
       for (let r = 0; r < headerRows.length - 1; r++) {
         const label = (c < headerRows[r].length ? headerRows[r][c] : '').trim();
         const prevLabel = (c - 1 >= 0 && c - 1 < headerRows[r].length ? headerRows[r][c - 1] : '').trim();
@@ -216,8 +217,14 @@ function parseGradedSection(
         if (checkLabel) {
           const isTerm1 = /term\s*1|term\s*i(?!i)/i.test(checkLabel);
           const isTerm2 = /term\s*2|term\s*ii/i.test(checkLabel);
-          if (resultType === 'FIRST_TERM' && isTerm2) continue;
-          if (resultType === 'FINAL' && isTerm1) continue;
+          if (resultType === 'FIRST_TERM' && isTerm2) {
+            skipColumn = true;
+            break;
+          }
+          if (resultType === 'FINAL' && isTerm1) {
+            skipColumn = true;
+            break;
+          }
           let matched = false;
           for (const item of itemMap) {
             if (item.pattern.test(checkLabel)) {
@@ -233,6 +240,9 @@ function parseGradedSection(
             break;
           }
         }
+      }
+      if (skipColumn) {
+        continue;
       }
     }
   }
