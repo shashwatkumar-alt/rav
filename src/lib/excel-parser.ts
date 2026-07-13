@@ -218,16 +218,20 @@ function parseGradedSection(
           const isTerm2 = /term\s*2|term\s*ii/i.test(checkLabel);
           if (resultType === 'FIRST_TERM' && isTerm2) continue;
           if (resultType === 'FINAL' && isTerm1) continue;
+          let matched = false;
           for (const item of itemMap) {
             if (item.pattern.test(checkLabel)) {
               const gradeVal = String(dataRow[c] ?? '').trim();
               if (gradeVal && !result[item.name]) {
                 result[item.name] = gradeVal;
               }
+              matched = true;
               break;
             }
           }
-          break;
+          if (matched) {
+            break;
+          }
         }
       }
     }
