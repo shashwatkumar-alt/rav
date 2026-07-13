@@ -125,7 +125,7 @@ function renderStudentResult(
   doc.setFont('helvetica', 'normal');
   doc.text('KOLEBIRA (NEAR MOUSIBARI)', PW / 2, y + 10, { align: 'center' });
   doc.text('SIMDEGA (JHARKHAND)', PW / 2, y + 14, { align: 'center' });
-  doc.text('Ph. 91+ 7763939191, Email – ravschool@gmail.com', PW / 2, y + 18, { align: 'center' });
+  doc.text('Ph. 91+ 7004197765, Email – ravschool@gmail.com', PW / 2, y + 18, { align: 'center' });
 
   y += 22;
   doc.setFontSize(11);
@@ -308,7 +308,8 @@ function renderStudentResult(
       hx = ML + subColW;
       for (const col of cols) {
         doc.rect(hx, y, col.w, cellH);
-        doc.text(col.label, hx + col.w / 2, y + 3.5, { align: 'center' });
+        const headerText = col.maxMarks ? `${col.label} (${col.maxMarks})` : col.label;
+        doc.text(headerText, hx + col.w / 2, y + 3.5, { align: 'center' });
         hx += col.w;
       }
       y += cellH;
@@ -338,7 +339,8 @@ function renderStudentResult(
       hx = ML + subColW;
       for (const col of cols) {
         doc.rect(hx, y, col.w, cellH);
-        doc.text(col.label, hx + col.w / 2, y + 3.5, { align: 'center' });
+        const headerText = col.maxMarks ? `${col.label} (${col.maxMarks})` : col.label;
+        doc.text(headerText, hx + col.w / 2, y + 3.5, { align: 'center' });
         hx += col.w;
       }
       y += cellH;
@@ -349,25 +351,12 @@ function renderStudentResult(
       let hx = ML + subColW;
       for (const col of cols) {
         doc.rect(hx, y, col.w, cellH * 2);
-        doc.text(col.label, hx + col.w / 2, y + cellH, { align: 'center' });
+        const headerText = col.maxMarks ? `${col.label} (${col.maxMarks})` : col.label;
+        doc.text(headerText, hx + col.w / 2, y + cellH, { align: 'center' });
         hx += col.w;
       }
       y += cellH * 2;
     }
-
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(5);
-    doc.rect(ML, y, subColW, cellH);
-    doc.text('Max. Marks', ML + 2, y + 3.5);
-    let mx = ML + subColW;
-    for (const col of cols) {
-      doc.rect(mx, y, col.w, cellH);
-      if (col.maxMarks) {
-        doc.text(col.maxMarks, mx + col.w / 2, y + 3.5, { align: 'center' });
-      }
-      mx += col.w;
-    }
-    y += cellH;
 
     doc.setFontSize(6);
 
