@@ -215,8 +215,8 @@ function parseGradedSection(
         const prevLabel = (c - 1 >= 0 && c - 1 < headerRows[r].length ? headerRows[r][c - 1] : '').trim();
         const checkLabel = label || prevLabel;
         if (checkLabel) {
-          const isTerm1 = /term\s*1|term\s*i(?!i)/i.test(checkLabel);
-          const isTerm2 = /term\s*2|term\s*ii/i.test(checkLabel);
+          const isTerm1 = /term[\s-]*1|term[\s-]*i(?!i)|1st\s*term/i.test(checkLabel);
+          const isTerm2 = /term[\s-]*2|term[\s-]*ii|2nd\s*term/i.test(checkLabel);
           if (resultType === 'FIRST_TERM' && isTerm2) {
             skipColumn = true;
             break;
@@ -621,17 +621,41 @@ export function parseWorkbook(
       }
       
       if (coScholasticStartCol >= 0) {
-        student.coScholastic = parseGradedSection(
+        const term1Grades = parseGradedSection(
+          headerRows, row, coScholasticStartCol, coScholasticEndCol,
+          CO_SCHOLASTIC_MAP, 'FIRST_TERM'
+        );
+        const term2Grades = parseGradedSection(
           headerRows, row, coScholasticStartCol, coScholasticEndCol,
           CO_SCHOLASTIC_MAP, 'FINAL'
         );
+        student.coScholastic = {};
+        for (const [key, val] of Object.entries(term1Grades)) {
+          student.coScholastic[`1T_${key}`] = val;
+        }
+        for (const [key, val] of Object.entries(term2Grades)) {
+          student.coScholastic[`2T_${key}`] = val;
+          student.coScholastic[key] = val;
+        }
       }
       
       if (disciplineStartCol >= 0) {
-        student.discipline = parseGradedSection(
+        const term1Grades = parseGradedSection(
+          headerRows, row, disciplineStartCol, disciplineEndCol,
+          DISCIPLINE_MAP, 'FIRST_TERM'
+        );
+        const term2Grades = parseGradedSection(
           headerRows, row, disciplineStartCol, disciplineEndCol,
           DISCIPLINE_MAP, 'FINAL'
         );
+        student.discipline = {};
+        for (const [key, val] of Object.entries(term1Grades)) {
+          student.discipline[`1T_${key}`] = val;
+        }
+        for (const [key, val] of Object.entries(term2Grades)) {
+          student.discipline[`2T_${key}`] = val;
+          student.discipline[key] = val;
+        }
       }
 
       students.push(student);

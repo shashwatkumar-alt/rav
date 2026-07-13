@@ -592,29 +592,30 @@ function renderStudentResult(
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(5);
-  const maxRows = Math.max(CO_SCHOLASTIC_ITEMS.length, DISCIPLINE_ITEMS.length);
-  for (let i = 0; i < maxRows; i++) {
-    doc.rect(ML, y, coItemW, cellH);
-    doc.rect(ML + coItemW, y, coGradeW, cellH);
-    doc.rect(ML + halfW, y, coItemW, cellH);
-    doc.rect(ML + halfW + coItemW, y, coGradeW, cellH);
-
-    if (i < CO_SCHOLASTIC_ITEMS.length) {
-      doc.text(CO_SCHOLASTIC_ITEMS[i], ML + 2, y + 3.5);
-      const coGrade = student.coScholastic?.[CO_SCHOLASTIC_ITEMS[i]] || '';
-      if (coGrade) {
-        doc.text(coGrade, ML + coItemW + coGradeW / 2, y + 3.5, { align: 'center' });
-      }
-    }
-    if (i < DISCIPLINE_ITEMS.length) {
-      doc.text(DISCIPLINE_ITEMS[i], ML + halfW + 2, y + 3.5);
-      const discGrade = student.discipline?.[DISCIPLINE_ITEMS[i]] || '';
-      if (discGrade) {
-        doc.text(discGrade, ML + halfW + coItemW + coGradeW / 2, y + 3.5, { align: 'center' });
-      }
-    }
-    y += cellH;
-  }
+   const termPrefix = resultType === 'FIRST_TERM' ? '1T_' : '2T_';
+   const maxRows = Math.max(CO_SCHOLASTIC_ITEMS.length, DISCIPLINE_ITEMS.length);
+   for (let i = 0; i < maxRows; i++) {
+     doc.rect(ML, y, coItemW, cellH);
+     doc.rect(ML + coItemW, y, coGradeW, cellH);
+     doc.rect(ML + halfW, y, coItemW, cellH);
+     doc.rect(ML + halfW + coItemW, y, coGradeW, cellH);
+ 
+     if (i < CO_SCHOLASTIC_ITEMS.length) {
+       doc.text(CO_SCHOLASTIC_ITEMS[i], ML + 2, y + 3.5);
+       const coGrade = student.coScholastic?.[termPrefix + CO_SCHOLASTIC_ITEMS[i]] || student.coScholastic?.[CO_SCHOLASTIC_ITEMS[i]] || '';
+       if (coGrade) {
+         doc.text(coGrade, ML + coItemW + coGradeW / 2, y + 3.5, { align: 'center' });
+       }
+     }
+     if (i < DISCIPLINE_ITEMS.length) {
+       doc.text(DISCIPLINE_ITEMS[i], ML + halfW + 2, y + 3.5);
+       const discGrade = student.discipline?.[termPrefix + DISCIPLINE_ITEMS[i]] || student.discipline?.[DISCIPLINE_ITEMS[i]] || '';
+       if (discGrade) {
+         doc.text(discGrade, ML + halfW + coItemW + coGradeW / 2, y + 3.5, { align: 'center' });
+       }
+     }
+     y += cellH;
+   }
 
   y += 2;
 
