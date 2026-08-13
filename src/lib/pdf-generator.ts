@@ -383,26 +383,41 @@ function renderStudentResult(
         return marks[key];
       };
 
-      const mainTermTotal = parseFloat(String(
+      const isOralSubject = /oral/i.test(subject);
+
+      let mainTermTotal = parseFloat(String(
         resultType === 'FIRST_TERM'
           ? (marks['1T_1st Term'] || marks['1T_Total'] || marks['1st Term'] || marks['Total'] || '')
           : (marks['2T_2nd Term'] || marks['2T_Total'] || marks['2nd Term'] || marks['Total'] || '')
       )) || 0;
 
-      const termITotal = parseFloat(String(
+      let termITotal = parseFloat(String(
         marks['1T_1st Term'] || marks['1T_Total'] ||
         marks['TERM I'] || marks['Term I'] || marks['Term 1'] || marks['SA-I Total'] || marks['1st Term'] || ''
       )) || 0;
 
+      if (isOralSubject) {
+        const term2PT = parseFloat(String(marks['2T_PT'] || marks['PT'] || '')) || 0;
+        const term2SA = parseFloat(String(marks['2T_SA-II'] || marks['2T_SA'] || marks['SA-II'] || marks['SA-I'] || marks['SA'] || '')) || 0;
+        const term1PT = parseFloat(String(marks['1T_PT'] || marks['PT'] || '')) || 0;
+        const term1SA = parseFloat(String(marks['1T_SA-I'] || marks['1T_SA'] || marks['SA-I'] || marks['SA'] || '')) || 0;
+        
+        mainTermTotal = resultType === 'FIRST_TERM' ? (term1PT + term1SA) : (term2PT + term2SA);
+        termITotal = term1PT + term1SA;
+      }
+
       const computed80 = resultType === 'FINAL' ? Math.round(mainTermTotal * 0.8) : 0;
       const computed20 = resultType === 'FINAL' ? Math.round(termITotal * 0.2) : 0;
       const computedGrandTotal = resultType === 'FINAL' ? computed80 + computed20 : 0;
-
       let sx = ML + subColW;
       for (const col of cols) {
         doc.rect(sx, y, col.w, cellH);
 
         let val: string | number | undefined = lookup(col.key);
+        
+        if (isOralSubject && (col.key === 'NB' || col.key === 'SEA')) {
+          val = '';
+        }
         
         if (val === undefined && col.key === 'SA-II') {
           val = lookup('SA-I') ?? lookup('SA') ?? marks['SA-II'];
