@@ -125,7 +125,7 @@ function renderStudentResult(
   doc.setFont('helvetica', 'normal');
   doc.text('KOLEBIRA (NEAR MOUSIBARI)', PW / 2, y + 10, { align: 'center' });
   doc.text('SIMDEGA (JHARKHAND)', PW / 2, y + 14, { align: 'center' });
-  doc.text('Ph. 91+ 7004197765, Email – ravschool@gmail.com', PW / 2, y + 18, { align: 'center' });
+  doc.text('Ph. 91+ 7004187765, Email – ravschool@gmail.com', PW / 2, y + 18, { align: 'center' });
 
   y += 22;
   doc.setFontSize(11);
