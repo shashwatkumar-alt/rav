@@ -15,6 +15,21 @@ function formatDisplayValue(val: string | number | undefined | null): string {
   return str;
 }
 
+function getSupwGrade(marksStr: string | number | undefined | null): string {
+  if (marksStr === undefined || marksStr === null || marksStr === '') return '';
+  const marks = Number(marksStr);
+  if (isNaN(marks)) return String(marksStr);
+  if (marks > 90) return 'A+';
+  if (marks > 80) return 'A';
+  if (marks > 70) return 'B+';
+  if (marks > 60) return 'B';
+  if (marks > 50) return 'C+';
+  if (marks > 40) return 'C';
+  if (marks > 33) return 'D';
+  if (marks > 20) return 'E';
+  return 'F';
+}
+
 const ADDITIONAL_SUBJECT_PATTERNS = [
   /^computer$/i,
   /^g\.?\s*k\.?$/i,
@@ -515,11 +530,11 @@ function renderStudentResult(
     String(totalMax || ''),
     formatDisplayValue(totalObtained),
     subjectCount > 0 ? percentage + '%' : '',
-    formatDisplayValue(
+    getSupwGrade(
       resultType === 'FINAL'
-        ? (student.extras['supw_final'] || student.extras['supw_term2'] || student.supw)
+        ? (student.extras['supw_final'] || student.supw)
         : student.supw
-    ) || '',
+    ),
     overallGrade,
     student.rank || '',
     student.overallRemarks || '',
