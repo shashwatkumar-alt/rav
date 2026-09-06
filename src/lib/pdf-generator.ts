@@ -30,6 +30,24 @@ function getSupwGrade(marksStr: string | number | undefined | null): string {
   return 'F';
 }
 
+/**
+ * Grading scale for Additional Subjects (out of 50 marks).
+ * 46–50 → A+, 41–45 → A, 36–40 → B+, 31–35 → B,
+ * 26–30 → C+, 21–25 → C, 17–20 → D, 11–16 → E, 0–10 → F
+ */
+function getGradeFor50(marks: number): string {
+  if (isNaN(marks) || marks < 0) return 'F';
+  if (marks >= 46) return 'A+';
+  if (marks >= 41) return 'A';
+  if (marks >= 36) return 'B+';
+  if (marks >= 31) return 'B';
+  if (marks >= 26) return 'C+';
+  if (marks >= 21) return 'C';
+  if (marks >= 17) return 'D';
+  if (marks >= 11) return 'E';
+  return 'F';
+}
+
 const ADDITIONAL_SUBJECT_PATTERNS = [
   /^computer$/i,
   /^g\.?\s*k\.?$/i,
@@ -283,6 +301,8 @@ function renderStudentResult(
     isAdditional: boolean,
     maxMarksTotal: number
   ): { y: number; totalObtained: number; totalMax: number; subjectCount: number } {
+    const gradeFromTotal = (total: number): string =>
+      isAdditional ? getGradeFor50(total) : getGrade(total);
     let tblTotalObtained = 0;
     let tblTotalMax = 0;
     let tblSubjectCount = 0;
@@ -402,13 +422,13 @@ function renderStudentResult(
 
       let mainTermTotal = parseFloat(String(
         resultType === 'FIRST_TERM'
-          ? (marks['1T_1st Term'] || marks['1T_Total'] || marks['1st Term'] || marks['Total'] || '')
-          : (marks['2T_2nd Term'] || marks['2T_Total'] || marks['2nd Term'] || marks['Total'] || '')
+          ? (marks['1T_1st Term'] || marks['1T_Total'] || marks['1st Term'] || marks['Total'] || marks['1T_SA-I'] || marks['SA-I'] || marks['SA'] || '')
+          : (marks['2T_2nd Term'] || marks['2T_Total'] || marks['2nd Term'] || marks['Total'] || marks['2T_SA-II'] || marks['SA-II'] || marks['SA'] || '')
       )) || 0;
 
       let termITotal = parseFloat(String(
         marks['1T_1st Term'] || marks['1T_Total'] ||
-        marks['TERM I'] || marks['Term I'] || marks['Term 1'] || marks['SA-I Total'] || marks['1st Term'] || ''
+        marks['TERM I'] || marks['Term I'] || marks['Term 1'] || marks['SA-I Total'] || marks['1st Term'] || marks['1T_SA-I'] || marks['SA-I'] || marks['SA'] || ''
       )) || 0;
 
       if (isOralSubject) {
@@ -431,7 +451,8 @@ function renderStudentResult(
         let val: string | number | undefined = lookup(col.key);
         
         if (isOralSubject && (col.key === 'NB' || col.key === 'SEA')) {
-          val = '';
+          // NB and SEA are intentionally not applicable for oral subjects
+          val = '-';
         }
         
         if (val === undefined && col.key === 'SA-II') {
@@ -455,9 +476,9 @@ function renderStudentResult(
         
         if (col.key === 'Grade') {
           if (resultType === 'FINAL') {
-            val = computedGrandTotal > 0 ? getGrade(computedGrandTotal) : '';
+            val = computedGrandTotal > 0 ? gradeFromTotal(computedGrandTotal) : (val ?? '');
           } else {
-            val = mainTermTotal > 0 ? getGrade(mainTermTotal) : '';
+            val = mainTermTotal > 0 ? gradeFromTotal(mainTermTotal) : (val ?? '');
           }
         }
 

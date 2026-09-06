@@ -83,23 +83,23 @@ const TERM_GROUP_PATTERNS: RegExp[] = [
 ];
 
 const CO_SCHOLASTIC_MAP: { pattern: RegExp; name: string }[] = [
-  { pattern: /^we/i, name: 'Work education' },
-  { pattern: /^ae/i, name: 'Art Education' },
-  { pattern: /^h\s*[&]\s*p/i, name: 'Health and Physical Education' },
-  { pattern: /^sc\.?\s*sk/i, name: 'Scientific Skills' },
-  { pattern: /^thnk\.?\s*sk/i, name: 'Thinking Skill' },
-  { pattern: /^socl\.?\s*sk/i, name: 'Social Skill' },
+  { pattern: /^we\b|work\s*edu/i, name: 'Work education' },
+  { pattern: /^ae\b|art\s*edu/i, name: 'Art Education' },
+  { pattern: /^h\s*[&]\s*p|health\s*(and|&)?\s*(phy|physical)/i, name: 'Health and Physical Education' },
+  { pattern: /^sc\.?\s*sk|scientific\s*skill/i, name: 'Scientific Skills' },
+  { pattern: /^thnk\.?\s*sk|thinking\s*skill/i, name: 'Thinking Skill' },
+  { pattern: /^socl\.?\s*sk|social\s*skill/i, name: 'Social Skill' },
   { pattern: /^yoga/i, name: 'Yoga /NCC' },
 ];
 
 const DISCIPLINE_MAP: { pattern: RegExp; name: string }[] = [
   { pattern: /^reg/i, name: 'Regularity and punctuality' },
-  { pattern: /^sincr/i, name: 'Sincerity' },
-  { pattern: /^bhvr/i, name: 'Behaviour and Values' },
-  { pattern: /^rspt/i, name: 'Respectfulness of Rules and Regulations' },
-  { pattern: /^at\.?\s*tchr/i, name: 'Attitude Towards Teachers' },
-  { pattern: /^at\.?\s*clmt/i, name: 'Attitude towards classmates' },
-  { pattern: /^at\.?\s*(nat|sct)/i, name: 'Attitude Towards society' },
+  { pattern: /^sincr|^sinceri/i, name: 'Sincerity' },
+  { pattern: /^bhvr|^behav/i, name: 'Behaviour and Values' },
+  { pattern: /^rspt|^respect/i, name: 'Respectfulness of Rules and Regulations' },
+  { pattern: /^at\.?\s*tchr|attitude\s*(towards?)?\s*teach/i, name: 'Attitude Towards Teachers' },
+  { pattern: /^at\.?\s*clmt|attitude\s*(towards?)?\s*class/i, name: 'Attitude towards classmates' },
+  { pattern: /^at\.?\s*(nat|sct)|attitude\s*(towards?)?\s*(soci|nat)/i, name: 'Attitude Towards society' },
 ];
 
 function identifyMetadataField(header: string): string | null {
@@ -196,6 +196,15 @@ function detectHeaderRowCount(rows: (string | number | undefined)[][]): number {
   return bestCount >= 3 ? bestRow + 1 : 1;
 }
 
+/**
+ * Returns true if the (already-uppercased) header value represents
+ * a grade/GR column in the Co-Scholastic or Discipline sections.
+ * Matches: GR, GR., GRADE, GRADES, GRD, GRAD, and any "GR" prefix.
+ */
+function isGradeCol(val: string): boolean {
+  return /^GR\.?$/.test(val) || /^GRADES?$/.test(val) || /^GRD$/.test(val) || /^GRAD$/.test(val);
+}
+
 function parseGradedSection(
   headerRows: string[][],
   dataRow: (string | number | undefined)[],
@@ -205,54 +214,68 @@ function parseGradedSection(
   resultType: 'FIRST_TERM' | 'FINAL'
 ): Record<string, string> {
   const result: Record<string, string> = {};
+
+  // Primary pass: only read from GR (grade) columns, never MX (marks) columns.
+  // For each GR column, walk up and scan leftward through header rows to find
+  // which item and which term it belongs to.
   for (let c = sectionStartCol; c <= sectionEndCol; c++) {
     const lastRow = headerRows[headerRows.length - 1];
-    const val = (c < lastRow.length ? lastRow[c] : '').toUpperCase().trim();
-    if (val === 'GR') {
-      let skipColumn = false;
-      for (let r = 0; r < headerRows.length - 1; r++) {
-        const label = (c < headerRows[r].length ? headerRows[r][c] : '').trim();
-        const prevLabel = (c - 1 >= 0 && c - 1 < headerRows[r].length ? headerRows[r][c - 1] : '').trim();
-        const checkLabel = label || prevLabel;
-        if (checkLabel) {
-          const isTerm1 = /term[\s-]*1|term[\s-]*i(?!i)|1st\s*term/i.test(checkLabel);
-          const isTerm2 = /term[\s-]*2|term[\s-]*ii|2nd\s*term/i.test(checkLabel);
-          if (resultType === 'FIRST_TERM' && isTerm2) {
-            skipColumn = true;
-            break;
-          }
-          if (resultType === 'FINAL' && isTerm1) {
-            skipColumn = true;
-            break;
-          }
-          let matched = false;
+    const colHeader = (c < lastRow.length ? lastRow[c] : '').toUpperCase().trim();
+
+    // ONLY process columns whose bottom-most header is a Grade column
+    if (!isGradeCol(colHeader)) continue;
+
+    let foundItem: { pattern: RegExp; name: string } | null = null;
+    let isTerm1Col = false;
+    let isTerm2Col = false;
+
+    // Walk every header row, and for each row scan from this column leftward
+    // (to handle merged cells where the label sits in a column to the left)
+    for (let r = 0; r < headerRows.length; r++) {
+      for (let scanC = c; scanC >= sectionStartCol; scanC--) {
+        const label = (scanC < headerRows[r].length ? headerRows[r][scanC] : '').trim();
+        if (!label) continue;
+
+        if (/term[\s-]*1|term[\s-]*i(?!i)|1st\s*term/i.test(label)) isTerm1Col = true;
+        if (/term[\s-]*2|term[\s-]*ii|2nd\s*term/i.test(label)) isTerm2Col = true;
+
+        if (!foundItem) {
           for (const item of itemMap) {
-            if (item.pattern.test(checkLabel)) {
-              const gradeVal = String(dataRow[c] ?? '').trim();
-              if (gradeVal && !result[item.name]) {
-                result[item.name] = gradeVal;
-              }
-              matched = true;
+            if (item.pattern.test(label)) {
+              foundItem = item;
               break;
             }
           }
-          if (matched) {
-            break;
-          }
         }
+
+        // Stop scanning left once we've found both item and term
+        if (foundItem && (isTerm1Col || isTerm2Col)) break;
+        // Stop scanning left if we hit a non-GR, non-empty column (new item boundary)
+        if (scanC < c && label && !isGradeCol(label.toUpperCase())) break;
       }
-      if (skipColumn) {
-        continue;
+    }
+
+    // Skip if this GR column belongs to the wrong term
+    if (resultType === 'FIRST_TERM' && isTerm2Col && !isTerm1Col) continue;
+    if (resultType === 'FINAL' && isTerm1Col && !isTerm2Col) continue;
+
+    if (foundItem) {
+      const gradeVal = String(dataRow[c] ?? '').trim();
+      if (gradeVal && !result[foundItem.name]) {
+        result[foundItem.name] = gradeVal;
       }
     }
   }
 
+  // Positional fallback: if the primary pass found nothing
+  // (e.g. no term labels in headers), collect all GR column values in order
+  // and map them positionally to items.
   if (Object.keys(result).length === 0) {
     const grValues: string[] = [];
     const lastRow = headerRows[headerRows.length - 1];
     for (let c = sectionStartCol; c <= sectionEndCol; c++) {
       const val = (c < lastRow.length ? lastRow[c] : '').toUpperCase().trim();
-      if (val === 'GR') {
+      if (isGradeCol(val)) {
         grValues.push(String(dataRow[c] ?? '').trim());
       }
     }
@@ -434,14 +457,58 @@ export function parseWorkbook(
     for (let r = 0; r < headerRows.length; r++) {
       for (let c = 0; c < headerRows[r].length; c++) {
         if (/^SUPW$/i.test(headerRows[r][c].trim())) {
-          if (r + 1 < headerRows.length) {
-            for (let sc = c; sc < Math.min(c + 5, headerRows[r + 1].length); sc++) {
-              const subH = headerRows[r + 1][sc].trim().toUpperCase();
-              if (/1ST\s*TERM/i.test(subH)) supwTerm1Col = sc;
-              else if (/2ND\s*TERM/i.test(subH)) supwTerm2Col = sc;
-              else if (/^FINAL$/i.test(subH)) supwFinalCol = sc;
+          // Collect term label positions by scanning subsequent header rows
+          const termCols: { term: 'T1' | 'T2' | 'FINAL'; labelCol: number }[] = [];
+
+          // Scan row r+1 and r+2 (and r itself to the right) for term sub-labels
+          const rowsToScan = [r + 1, r + 2].filter(ri => ri < headerRows.length);
+          for (const ri of rowsToScan) {
+            for (let sc = c; sc < Math.min(c + 15, headerRows[ri].length); sc++) {
+              const subH = headerRows[ri][sc].trim().toUpperCase();
+              if (!subH) continue;
+              if (/1ST\s*TERM|TERM[\s-]*1|TERM[\s-]*I(?!I)/i.test(subH) && !termCols.find(t => t.term === 'T1'))
+                termCols.push({ term: 'T1', labelCol: sc });
+              else if (/2ND\s*TERM|TERM[\s-]*2|TERM[\s-]*II/i.test(subH) && !termCols.find(t => t.term === 'T2'))
+                termCols.push({ term: 'T2', labelCol: sc });
+              else if (/final/i.test(subH) && !termCols.find(t => t.term === 'FINAL'))
+                termCols.push({ term: 'FINAL', labelCol: sc });
             }
           }
+          // Also scan the same row to the right of "SUPW"
+          for (let sc = c + 1; sc < Math.min(c + 15, headerRows[r].length); sc++) {
+            const subH = headerRows[r][sc].trim().toUpperCase();
+            if (!subH) continue;
+            if (/1ST\s*TERM|TERM[\s-]*1|TERM[\s-]*I(?!I)/i.test(subH) && !termCols.find(t => t.term === 'T1'))
+              termCols.push({ term: 'T1', labelCol: sc });
+            else if (/2ND\s*TERM|TERM[\s-]*2|TERM[\s-]*II/i.test(subH) && !termCols.find(t => t.term === 'T2'))
+              termCols.push({ term: 'T2', labelCol: sc });
+            else if (/final/i.test(subH) && !termCols.find(t => t.term === 'FINAL'))
+              termCols.push({ term: 'FINAL', labelCol: sc });
+          }
+
+          // For each term, find the actual MARKS data column in the scoreTypeRow.
+          // Prefer the column labelled "MARKS" or "MX"; fall back to the label column itself.
+          const findMarksDataCol = (labelCol: number, nextLabelCol: number): number => {
+            const endSearch = nextLabelCol > labelCol ? nextLabelCol : labelCol + 5;
+            for (let sc = labelCol; sc < Math.min(endSearch, scoreTypeRow.length); sc++) {
+              const h = scoreTypeRow[sc].toUpperCase().trim();
+              if (/^marks(\s*\(\d+\))?$/i.test(h) || /^mx\d*$/i.test(h) || /^marks$/i.test(h)) return sc;
+            }
+            return labelCol; // fallback: the term-label column itself
+          };
+
+          // Sort termCols by labelCol so we can compute ranges
+          termCols.sort((a, b) => a.labelCol - b.labelCol);
+
+          for (let i = 0; i < termCols.length; i++) {
+            const { term, labelCol } = termCols[i];
+            const nextLabelCol = i + 1 < termCols.length ? termCols[i + 1].labelCol : labelCol + 5;
+            const marksCol = findMarksDataCol(labelCol, nextLabelCol);
+            if (term === 'T1') supwTerm1Col = marksCol;
+            else if (term === 'T2') supwTerm2Col = marksCol;
+            else supwFinalCol = marksCol;
+          }
+
           if (supwTerm1Col === -1 && supwTerm2Col === -1 && supwFinalCol === -1) {
             supwCol = c;
           }
