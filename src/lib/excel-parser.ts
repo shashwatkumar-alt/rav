@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx';
+import * as XLSX from '@keep-lts/xlsx';
 import type { ParsedWorkbook, SheetData, StudentData, ValidationError, ColumnMapping, AttendanceData } from './types';
 
 const METADATA_PATTERNS: Record<string, RegExp[]> = {
