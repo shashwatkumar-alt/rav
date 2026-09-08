@@ -50,12 +50,15 @@ function getGradeFor50(marks: number): string {
 
 const ADDITIONAL_SUBJECT_PATTERNS = [
   /^computer$/i,
-  /^g\.?\s*k\.?$/i,
+  /^g\.?\s*k\.?$/i,                    // G.K / GK
+  /^gk$/i,                             // GK
   /^hindi[\s-]*rhymes?$/i,
   /^english[\s-]*rhymes?$/i,
+  /^engligh[\s-]*rhymes?$/i,           // UKG typo as-is in Excel
   /^conversation$/i,
   /^drawing$/i,
   /^moral\s*science$/i,
+  /^m\.?\s*sc\.?$/i,                   // M. SC. (LKG / UKG)
 ];
 
 function isAdditionalSubject(name: string): boolean {
@@ -81,6 +84,36 @@ const DISCIPLINE_ITEMS = [
   'Attitude towards classmates',
   'Attitude Towards society',
 ];
+
+/**
+ * Compute a student's total for the requested term (mirrors the same lookup
+ * logic used in renderSubjectTable so ranks are consistent with displayed marks).
+ */
+function computeStudentTermTotal(
+  student: StudentData,
+  subjectNames: string[],
+  resultType: ResultType
+): number {
+  let total = 0;
+  for (const subject of subjectNames) {
+    const marks = student.subjects[subject] || {};
+    const isOral = /oral/i.test(subject);
+    let termTotal = 0;
+    if (isOral) {
+      const pt  = parseFloat(String(resultType === 'FIRST_TERM' ? (marks['1T_PT']  || marks['PT']  || '') : (marks['2T_PT']  || marks['PT']  || ''))) || 0;
+      const sa  = parseFloat(String(resultType === 'FIRST_TERM' ? (marks['1T_SA-I'] || marks['SA-I'] || marks['SA'] || '') : (marks['2T_SA-II'] || marks['SA-II'] || marks['SA'] || ''))) || 0;
+      termTotal = pt + sa;
+    } else {
+      termTotal = parseFloat(String(
+        resultType === 'FIRST_TERM'
+          ? (marks['1T_1st Term'] || marks['1T_Total'] || marks['1st Term'] || marks['Total'] || marks['1T_SA-I'] || marks['SA-I'] || marks['SA'] || '')
+          : (marks['2T_2nd Term'] || marks['2T_Total'] || marks['2nd Term'] || marks['Total'] || marks['2T_SA-II'] || marks['SA-II'] || marks['SA'] || '')
+      )) || 0;
+    }
+    if (termTotal > 0) total += termTotal;
+  }
+  return total;
+}
 
 export async function generateResultsPDF(
   workbook: ParsedWorkbook,
@@ -108,9 +141,26 @@ export async function generateResultsPDF(
   let firstPage = true;
 
   for (const sheet of workbook.sheets) {
-    for (const student of sheet.students) {
-      if (!student.name && !student.rollNo) continue;
+    // ── Compute ranks for this class before rendering ──────────────────────
+    // The rank formula cells in Excel depend on 2nd-term totals and error out
+    // when only 1st-term data is present, so we compute rank here instead.
+    const validStudents = sheet.students.filter(s => s.name || s.rollNo);
+    const rankedList = validStudents
+      .map(s => ({ student: s, total: computeStudentTermTotal(s, sheet.subjectNames, resultType) }))
+      .sort((a, b) => b.total - a.total);
 
+    let rankCounter = 1;
+    for (let i = 0; i < rankedList.length; i++) {
+      // Students with the same total share the same rank
+      if (i > 0 && rankedList[i].total < rankedList[i - 1].total) {
+        rankCounter = i + 1;
+      }
+      // Only assign a rank if the student has any marks (not fully absent)
+      rankedList[i].student.rank = rankedList[i].total > 0 ? String(rankCounter) : (rankedList[i].student.rank || '');
+    }
+    // ──────────────────────────────────────────────────────────────────────
+
+    for (const student of validStudents) {
       if (!firstPage) doc.addPage();
       firstPage = false;
 
@@ -547,6 +597,18 @@ function renderStudentResult(
   const overallGrade = getGrade(percentage);
 
   const opLabels = ['TOTAL MARKS', 'MARKS OBTD.', '%', 'SUPW', 'GRADE', 'RANK', 'REMARKS'];
+  
+  // In-built Remarks generator based on percentage.
+  let generatedRemarks = '';
+  if (percentage >= 91) generatedRemarks = 'EXCELLENT';
+  else if (percentage >= 81) generatedRemarks = 'VERY GOOD';
+  else if (percentage >= 71) generatedRemarks = 'GOOD';
+  else if (percentage >= 61) generatedRemarks = 'FAIR';
+  else if (percentage >= 51) generatedRemarks = 'SATISFACTORY';
+  else if (percentage >= 41) generatedRemarks = 'AVERAGE';
+  else if (percentage >= 33) generatedRemarks = 'MARGINAL';
+  else if (percentage > 0) generatedRemarks = 'NEEDS IMPROVEMENT';
+
   const opValues = [
     String(totalMax || ''),
     formatDisplayValue(totalObtained),
@@ -558,7 +620,7 @@ function renderStudentResult(
     ),
     overallGrade,
     student.rank || '',
-    student.overallRemarks || '',
+    generatedRemarks,
   ];
 
   const opW = CW / opLabels.length;

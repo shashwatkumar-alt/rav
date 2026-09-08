@@ -416,19 +416,19 @@ export function parseWorkbook(
     const scoreTypesSet = new Set<string>();
 
     const scoreTypeRow = headerRows[headerRowCount - 1];
-    
+
     let coScholasticStartCol = -1;
     let disciplineStartCol = -1;
     let attendanceStartCol = -1;
     let grandScoreStartCol = -1;
-    
+
     let supwCol = -1;
     let supwTerm1Col = -1;
     let supwTerm2Col = -1;
     let supwFinalCol = -1;
     let rankCol = -1;
     let remarkCol = -1;
-    
+
     for (let r = 0; r < headerRows.length; r++) {
       for (let c = 0; c < headerRows[r].length; c++) {
         const h = headerRows[r][c].toUpperCase();
@@ -446,14 +446,14 @@ export function parseWorkbook(
         }
       }
     }
-    
+
     for (let c = 0; c < scoreTypeRow.length; c++) {
       const h = scoreTypeRow[c].toUpperCase().trim();
       if (/^SUPW$/i.test(h)) supwCol = c;
       if (/^(rank|\(position\)|position)$/i.test(h)) rankCol = c;
       if (/^remarks?$/i.test(h) && c < (attendanceStartCol > 0 ? attendanceStartCol : 999)) remarkCol = c;
     }
-    
+
     for (let r = 0; r < headerRows.length; r++) {
       for (let c = 0; c < headerRows[r].length; c++) {
         if (/^SUPW$/i.test(headerRows[r][c].trim())) {
@@ -521,7 +521,7 @@ export function parseWorkbook(
     const allSectionStarts = [coScholasticStartCol, disciplineStartCol, attendanceStartCol, grandScoreStartCol]
       .filter(c => c >= 0)
       .sort((a, b) => a - b);
-    
+
     const subjectEndCol = allSectionStarts.length > 0 ? Math.min(...allSectionStarts) - 1 : scoreTypeRow.length - 1;
 
     const getNextSectionStart = (currentStart: number): number => {
@@ -532,7 +532,7 @@ export function parseWorkbook(
     const attendanceEndCol = attendanceStartCol >= 0 ? getNextSectionStart(attendanceStartCol) : -1;
     const coScholasticEndCol = coScholasticStartCol >= 0 ? getNextSectionStart(coScholasticStartCol) : -1;
     const disciplineEndCol = disciplineStartCol >= 0 ? getNextSectionStart(disciplineStartCol) : -1;
-    
+
     for (let col = 0; col < scoreTypeRow.length; col++) {
       const val = scoreTypeRow[col];
       if (!val || isBlankOrEmpty(val)) continue;
@@ -546,9 +546,15 @@ export function parseWorkbook(
     if (headerRowCount >= 2) {
       const subjectRow = headerRows[0];
       const termRow = headerRowCount >= 2 ? headerRows[1] : null;
-      
+
       let currentSubject = '';
       let currentTermGroup = '';
+
+      // Track which column index each subject name was FIRST seen at, so that
+      // a duplicate header in Row 1 (e.g. two "ENGLISH RHYMES" spans) doesn't
+      // re-use an already-registered subject and overwrite its column mappings.
+      // Instead, the duplicate gets a disambiguated internal name.
+      const subjectFirstSeenAt: Record<string, number> = {};
 
       const colCount = headerRows.length > 0 ? Math.max(0, ...headerRows.map(r => r.length)) : 0;
       for (let col = 0; col < Math.min(colCount, subjectEndCol + 1); col++) {
@@ -556,14 +562,14 @@ export function parseWorkbook(
 
         const subjectVal = col < subjectRow.length ? subjectRow[col] : '';
         const scoreVal = col < scoreTypeRow.length ? scoreTypeRow[col] : '';
-        
+
         if (termRow && col < termRow.length) {
           const termVal = termRow[col];
           if (termVal && !isBlankOrEmpty(termVal) && TERM_GROUP_PATTERNS.some(p => p.test(termVal))) {
             currentTermGroup = termVal;
           }
         }
-        
+
         let termPrefix: string | undefined;
         if (/1st\s*term/i.test(currentTermGroup)) {
           termPrefix = '1T_';
@@ -572,7 +578,7 @@ export function parseWorkbook(
         } else if (/final/i.test(currentTermGroup)) {
           termPrefix = 'FR_';
         }
-        
+
         if (scoreVal && isMetadataOrNonSubject(scoreVal) && !isScoreType(scoreVal)) {
           continue;
         }
@@ -580,9 +586,31 @@ export function parseWorkbook(
         if (subjectVal && !isBlankOrEmpty(subjectVal) && !isMetadataOrNonSubject(subjectVal) && !isScoreType(subjectVal)) {
           if (subjectVal.toUpperCase() !== sheetName.toUpperCase() && subjectVal.toUpperCase() !== 'STUDENTS DETAILS') {
             if (!TERM_GROUP_PATTERNS.some(p => p.test(subjectVal))) {
-              currentSubject = subjectVal;
-              if (!subjectNames.includes(currentSubject)) {
+              // Duplicate subject header guard: if this subject name was already seen
+              // and the current column is far enough away that it is a NEW span
+              // (i.e. not a merged-cell continuation), skip updating currentSubject
+              // so the column context stays with the PREVIOUS distinct subject.
+              const alreadySeen = subjectFirstSeenAt[subjectVal] !== undefined;
+              if (!alreadySeen) {
+                currentSubject = subjectVal;
                 subjectNames.push(currentSubject);
+                subjectFirstSeenAt[subjectVal] = col;
+              } else {
+                // This is a duplicate header label appearing in a fresh column span.
+                // Give it a unique internal name so it doesn't clobber the first one.
+                // We only do this when there is at least one score-type column between
+                // the first occurrence and this column (i.e. it is a genuine new block).
+                const gapHasScoreCol = columnMappings.some(
+                  m => m.subject === subjectVal && m.colIndex < col
+                );
+                if (gapHasScoreCol) {
+                  // Create a disambiguated name (invisible to the result card because
+                  // it won't match any ADDITIONAL_SUBJECT_PATTERNS display name).
+                  const dupName = subjectVal + '__DUP';
+                  currentSubject = dupName;
+                  // Do NOT add to subjectNames so it never appears in the result PDF.
+                }
+                // else: still inside the merged-cell region of the same subject, keep currentSubject
               }
             }
           }
@@ -627,7 +655,7 @@ export function parseWorkbook(
       if (/^(REGD?\s*NO\.?|S\.?\s*NO\.?|SR\.?\s*NO\.?|SL\.?\s*NO\.?|SERIAL\s*(NO\.?|NUMBER))$/i.test(firstCellStr)) {
         continue;
       }
-      
+
       const secondCellStr = String(row[1] ?? '').trim().toUpperCase();
       if (secondCellStr.startsWith('CLASS ')) continue;
       const rowHasAcademicPerformance = row.some(cell => /ACADEMIC\s*PERFORMANCE/i.test(String(cell ?? '')));
@@ -672,7 +700,7 @@ export function parseWorkbook(
           student.subjects[mapping.subject][mapping.termGroup + mapping.scoreType] = cellValue ?? '';
         }
       }
-      
+
       if (supwTerm1Col >= 0) {
         student.supw = String(row[supwTerm1Col] ?? '').trim();
         if (supwTerm2Col >= 0) student.extras['supw_term2'] = String(row[supwTerm2Col] ?? '').trim();
@@ -682,11 +710,11 @@ export function parseWorkbook(
       }
       if (rankCol >= 0) student.rank = String(row[rankCol] ?? '').trim();
       if (remarkCol >= 0) student.overallRemarks = String(row[remarkCol] ?? '').trim();
-      
+
       if (attendanceStartCol >= 0) {
         student.attendance = parseAttendance(headerRows, row, attendanceStartCol, attendanceEndCol);
       }
-      
+
       if (coScholasticStartCol >= 0) {
         const term1Grades = parseGradedSection(
           headerRows, row, coScholasticStartCol, coScholasticEndCol,
@@ -705,7 +733,7 @@ export function parseWorkbook(
           student.coScholastic[key] = val;
         }
       }
-      
+
       if (disciplineStartCol >= 0) {
         const term1Grades = parseGradedSection(
           headerRows, row, disciplineStartCol, disciplineEndCol,
