@@ -767,7 +767,7 @@ function renderStudentResult(
 
   if (principalSign) {
     try {
-      doc.addImage(principalSign, 'PNG', ML + 2 * sigW + (sigW - 30) / 2, y + 4, 30, 13);
+      doc.addImage(principalSign, 'PNG', ML + 2 * sigW + (sigW - 38) / 2, y + 2.5, 38, 16.5);
     } catch {}
   }
 
