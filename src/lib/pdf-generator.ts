@@ -192,119 +192,122 @@ function renderStudentResult(
   PW: number, ML: number, CW: number,
   schoolLogo: string | null, principalSign: string | null
 ) {
-  let y = 6;
+  let y = 8;
   const examLabel = resultType === 'FIRST_TERM' ? 'SA-I (Term I)' : 'SA-II (Term II)';
 
   if (schoolLogo) {
-    try { doc.addImage(schoolLogo, 'JPEG', ML + 2, y, 16, 16); } catch {}
-    try { doc.addImage(schoolLogo, 'JPEG', PW - ML - 18, y, 16, 16); } catch {}
+    try { doc.addImage(schoolLogo, 'JPEG', ML + 1.5, y + 0.5, 18, 18); } catch {}
+    try { doc.addImage(schoolLogo, 'JPEG', PW - ML - 19.5, y + 0.5, 18, 18); } catch {}
   }
 
-  doc.setFontSize(13);
+  // 1. School Header
+  doc.setFontSize(14.5);
   doc.setFont('helvetica', 'bold');
   doc.text('RAMKRISHNA ANGLO VEDIC PUBLIC SCHOOL', PW / 2, y + 5, { align: 'center' });
 
-  doc.setFontSize(8);
+  doc.setFontSize(8.5);
   doc.setFont('helvetica', 'normal');
-  doc.text('KOLEBIRA (NEAR MOUSIBARI)', PW / 2, y + 10, { align: 'center' });
-  doc.text('SIMDEGA (JHARKHAND)', PW / 2, y + 14, { align: 'center' });
-  doc.text('Ph. 91+ 7004187765, Email – ravschool@gmail.com', PW / 2, y + 18, { align: 'center' });
+  doc.text('KOLEBIRA (NEAR MOUSIBARI), SIMDEGA (JHARKHAND)', PW / 2, y + 10.5, { align: 'center' });
+  doc.text('Ph. +91 7004187765, Email – ravschool@gmail.com', PW / 2, y + 15.5, { align: 'center' });
 
-  y += 22;
-  doc.setFontSize(11);
+  y += 20;
+  doc.setFontSize(11.5);
   doc.setFont('helvetica', 'bold');
-  doc.text('REPORT – CARD', PW / 2, y, { align: 'center' });
-  y += 5;
+  doc.text('REPORT – CARD', PW / 2, y + 2.5, { align: 'center' });
+  y += 6;
 
-  const rh = 6;
-  doc.setFontSize(7);
-
-  const t1cols = [CW * 0.15, CW * 0.35, CW * 0.1, CW * 0.4];
+  // 2. Exam and Year bar
+  const rh = 6.8;
+  const t1cols = [CW * 0.16, CW * 0.34, CW * 0.14, CW * 0.36];
   doc.rect(ML, y, t1cols[0], rh);
   doc.rect(ML + t1cols[0], y, t1cols[1], rh);
   doc.rect(ML + t1cols[0] + t1cols[1], y, t1cols[2], rh);
   doc.rect(ML + t1cols[0] + t1cols[1] + t1cols[2], y, t1cols[3], rh);
 
+  doc.setFontSize(8.5);
   doc.setFont('helvetica', 'bold');
-  doc.text('Examination', ML + 2, y + 4);
+  doc.text('Examination :', ML + 3, y + 4.6);
   doc.setFont('helvetica', 'normal');
-  doc.text(examLabel, ML + t1cols[0] + 2, y + 4);
+  doc.text(examLabel, ML + t1cols[0] + 3.5, y + 4.6);
   doc.setFont('helvetica', 'bold');
-  doc.text('Year', ML + t1cols[0] + t1cols[1] + 2, y + 4);
+  doc.text('Year :', ML + t1cols[0] + t1cols[1] + 3, y + 4.6);
   doc.setFont('helvetica', 'normal');
-  doc.text(sessionYear, ML + t1cols[0] + t1cols[1] + t1cols[2] + 2, y + 4);
-  y += rh;
+  doc.text(sessionYear, ML + t1cols[0] + t1cols[1] + t1cols[2] + 3.5, y + 4.6);
+  y += rh + 2.5;
 
-  const leftW = CW * 0.65;
-  const rightW = CW * 0.35;
+  // 3. Student Profile Info Box
+  const leftW = CW * 0.64;
+  const rightW = CW * 0.36;
   const infoH = 24;
 
   doc.rect(ML, y, leftW, infoH);
   doc.rect(ML + leftW, y, rightW, infoH);
 
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7);
-  const lx = ML + 3;
-  const rx = ML + leftW + 3;
-  const valOffset = 28;
-  const rValOffset = 16;
-
-  doc.text("Student's Name :", lx, y + 5);
-  doc.setFont('helvetica', 'normal');
-  doc.text(student.name || '', lx + valOffset, y + 5);
+  doc.setFontSize(8.5);
+  const lx = ML + 3.5;
+  const rx = ML + leftW + 3.5;
+  const valOffset = 32;
+  const rValOffset = 21;
 
   doc.setFont('helvetica', 'bold');
-  doc.text("Father's Name :", lx, y + 10);
+  doc.text("Student's Name :", lx, y + 5.2);
   doc.setFont('helvetica', 'normal');
-  doc.text(student.fatherName || '', lx + valOffset, y + 10);
+  doc.text(student.name || '', lx + valOffset, y + 5.2);
 
   doc.setFont('helvetica', 'bold');
-  doc.text("Mother's Name :", lx, y + 15);
+  doc.text("Father's Name :", lx, y + 11);
   doc.setFont('helvetica', 'normal');
-  doc.text(student.motherName || '', lx + valOffset, y + 15);
+  doc.text(student.fatherName || '', lx + valOffset, y + 11);
 
   doc.setFont('helvetica', 'bold');
-  doc.text('Date of Birth :', lx, y + 20);
+  doc.text("Mother's Name :", lx, y + 16.8);
   doc.setFont('helvetica', 'normal');
-  doc.text(student.dob || '', lx + valOffset, y + 20);
+  doc.text(student.motherName || '', lx + valOffset, y + 16.8);
 
   doc.setFont('helvetica', 'bold');
-  doc.text('Class :', rx, y + 5);
+  doc.text('Date of Birth :', lx, y + 22.5);
   doc.setFont('helvetica', 'normal');
-  doc.text(student.class || '', rx + rValOffset, y + 5);
+  doc.text(student.dob || '', lx + valOffset, y + 22.5);
 
   doc.setFont('helvetica', 'bold');
-  doc.text('Roll No. :', rx, y + 11);
+  doc.text('Class :', rx, y + 5.5);
   doc.setFont('helvetica', 'normal');
-  doc.text(String(student.rollNo || ''), rx + rValOffset, y + 11);
+  doc.text(student.class || '', rx + rValOffset, y + 5.5);
 
   doc.setFont('helvetica', 'bold');
-  doc.text('Adm. No. :', rx, y + 17);
+  doc.text('Roll No. :', rx, y + 13);
   doc.setFont('helvetica', 'normal');
-  doc.text(String(student.admNo || ''), rx + rValOffset, y + 17);
+  doc.text(String(student.rollNo || ''), rx + rValOffset, y + 13);
 
-  y += infoH + 1;
+  doc.setFont('helvetica', 'bold');
+  doc.text('Adm. No. :', rx, y + 20.5);
+  doc.setFont('helvetica', 'normal');
+  doc.text(String(student.admNo || ''), rx + rValOffset, y + 20.5);
 
-  const cellH = 5;
+  y += infoH + 2.5;
+
+  const cellH = 5.8;
 
   const mainSubjects = subjectNames.filter(s => !isAdditionalSubject(s));
   const additionalSubjects = subjectNames.filter(s => isAdditionalSubject(s));
 
-  const subColW = 28;
+  // 4. Proportional Table Columns
+  let subColW: number;
   let scoreCols: { label: string; key: string; w: number; maxMarks?: string }[];
   
   if (resultType === 'FIRST_TERM') {
-    const remW = CW - subColW;
-    const colW = remW / 6;
-    scoreCols = [
-      { label: 'PT', key: 'PT', w: colW, maxMarks: '20' },
-      { label: 'NB', key: 'NB', w: colW, maxMarks: '10' },
-      { label: 'SEA', key: 'SEA', w: colW, maxMarks: '10' },
-      { label: 'SA-I', key: 'SA-I', w: colW, maxMarks: '60' },
-      { label: 'TOTAL', key: 'Total', w: colW, maxMarks: '100' },
-      { label: 'Grade', key: 'Grade', w: colW },
+    subColW = 50;
+    const numCols = [
+      { label: 'PT', key: 'PT', w: 22, maxMarks: '20' },
+      { label: 'NB', key: 'NB', w: 22, maxMarks: '10' },
+      { label: 'SEA', key: 'SEA', w: 22, maxMarks: '10' },
+      { label: 'SA-I', key: 'SA-I', w: 26, maxMarks: '60' },
+      { label: 'TOTAL', key: 'Total', w: 28, maxMarks: '100' },
+      { label: 'Grade', key: 'Grade', w: 24 },
     ];
+    scoreCols = numCols;
   } else {
+    subColW = 40;
     const remW = CW - subColW;
     const colW = remW / 10;
     scoreCols = [
@@ -324,11 +327,13 @@ function renderStudentResult(
   let addScoreCols: { label: string; key: string; w: number; maxMarks?: string }[];
   if (resultType === 'FIRST_TERM') {
     const remW = CW - subColW;
-    const colW = remW / 3;
+    const c1 = Math.round(remW * 0.35);
+    const c2 = Math.round(remW * 0.35);
+    const c3 = remW - c1 - c2;
     addScoreCols = [
-      { label: 'SA-I', key: 'SA-I', w: colW, maxMarks: '50' },
-      { label: 'TOTAL', key: 'Total', w: colW, maxMarks: '50' },
-      { label: 'Grade', key: 'Grade', w: colW },
+      { label: 'SA-I', key: 'SA-I', w: c1, maxMarks: '50' },
+      { label: 'TOTAL', key: 'Total', w: c2, maxMarks: '50' },
+      { label: 'Grade', key: 'Grade', w: c3 },
     ];
   } else {
     const remW = CW - subColW;
@@ -358,100 +363,99 @@ function renderStudentResult(
     let tblSubjectCount = 0;
 
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(7);
-    doc.setFillColor(230, 230, 230);
-    doc.rect(ML, y, CW, cellH + 1, 'FD');
-    doc.text(title, PW / 2, y + 3.5, { align: 'center' });
-    y += cellH + 1;
+    doc.setFontSize(8.5);
+    doc.setFillColor(235, 238, 242);
+    doc.rect(ML, y, CW, cellH, 'FD');
+    doc.text(title, PW / 2, y + 4.1, { align: 'center' });
+    y += cellH;
 
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(6);
+    doc.setFontSize(7.8);
 
     if (resultType === 'FINAL' && !isAdditional) {
       doc.rect(ML, y, subColW, cellH * 2);
-      doc.text('Subject', ML + 2, y + cellH);
+      doc.text('Subject', ML + 3, y + cellH + 0.5);
       
       const termIIW = cols.slice(0, 6).reduce((s, c) => s + c.w, 0);
       let hx = ML + subColW;
       doc.rect(hx, y, termIIW, cellH);
-      doc.text('TERM II', hx + termIIW / 2, y + 3.5, { align: 'center' });
+      doc.text('TERM II', hx + termIIW / 2, y + 4.1, { align: 'center' });
       hx += termIIW;
       
       const termIW = cols[6].w + cols[7].w;
       doc.rect(hx, y, termIW, cellH);
-      doc.text('TERM I', hx + termIW / 2, y + 3.5, { align: 'center' });
+      doc.text('TERM I', hx + termIW / 2, y + 4.1, { align: 'center' });
       hx += termIW;
       
       doc.rect(hx, y, cols[8].w, cellH);
-      doc.text('TOTAL', hx + cols[8].w / 2, y + 3.5, { align: 'center' });
+      doc.text('TOTAL', hx + cols[8].w / 2, y + 4.1, { align: 'center' });
       hx += cols[8].w;
       
       doc.rect(hx, y, cols[9].w, cellH);
-      doc.text('Grade', hx + cols[9].w / 2, y + 3.5, { align: 'center' });
+      doc.text('Grade', hx + cols[9].w / 2, y + 4.1, { align: 'center' });
       y += cellH;
 
       hx = ML + subColW;
       for (const col of cols) {
         doc.rect(hx, y, col.w, cellH);
         const headerText = col.maxMarks ? `${col.label} (${col.maxMarks})` : col.label;
-        doc.text(headerText, hx + col.w / 2, y + 3.5, { align: 'center' });
+        doc.text(headerText, hx + col.w / 2, y + 4.1, { align: 'center' });
         hx += col.w;
       }
       y += cellH;
     } else if (resultType === 'FINAL' && isAdditional) {
       doc.rect(ML, y, subColW, cellH * 2);
-      doc.text('Subject', ML + 2, y + cellH);
+      doc.text('Subject', ML + 3, y + cellH + 0.5);
       
       const termIIW = cols.slice(0, 3).reduce((s, c) => s + c.w, 0);
       let hx = ML + subColW;
       doc.rect(hx, y, termIIW, cellH);
-      doc.text('TERM II', hx + termIIW / 2, y + 3.5, { align: 'center' });
+      doc.text('TERM II', hx + termIIW / 2, y + 4.1, { align: 'center' });
       hx += termIIW;
       
       const termIW = cols[3].w + cols[4].w;
       doc.rect(hx, y, termIW, cellH);
-      doc.text('TERM I', hx + termIW / 2, y + 3.5, { align: 'center' });
+      doc.text('TERM I', hx + termIW / 2, y + 4.1, { align: 'center' });
       hx += termIW;
       
       doc.rect(hx, y, cols[5].w, cellH);
-      doc.text('TOTAL', hx + cols[5].w / 2, y + 3.5, { align: 'center' });
+      doc.text('TOTAL', hx + cols[5].w / 2, y + 4.1, { align: 'center' });
       hx += cols[5].w;
       
       doc.rect(hx, y, cols[6].w, cellH);
-      doc.text('Grade', hx + cols[6].w / 2, y + 3.5, { align: 'center' });
+      doc.text('Grade', hx + cols[6].w / 2, y + 4.1, { align: 'center' });
       y += cellH;
 
       hx = ML + subColW;
       for (const col of cols) {
         doc.rect(hx, y, col.w, cellH);
         const headerText = col.maxMarks ? `${col.label} (${col.maxMarks})` : col.label;
-        doc.text(headerText, hx + col.w / 2, y + 3.5, { align: 'center' });
+        doc.text(headerText, hx + col.w / 2, y + 4.1, { align: 'center' });
         hx += col.w;
       }
       y += cellH;
     } else {
       doc.rect(ML, y, subColW, cellH * 2);
-      doc.text('Subject', ML + 2, y + cellH);
+      doc.text('Subject', ML + 3, y + cellH + 0.5);
 
       let hx = ML + subColW;
       for (const col of cols) {
         doc.rect(hx, y, col.w, cellH * 2);
         const headerText = col.maxMarks ? `${col.label} (${col.maxMarks})` : col.label;
-        doc.text(headerText, hx + col.w / 2, y + cellH, { align: 'center' });
+        doc.text(headerText, hx + col.w / 2, y + cellH + 0.5, { align: 'center' });
         hx += col.w;
       }
       y += cellH * 2;
     }
 
-    doc.setFontSize(6);
-
     for (const subject of subjects) {
       const marks = student.subjects[subject] || {};
 
       doc.rect(ML, y, subColW, cellH);
-      const displayName = subject.length > 16 ? subject.substring(0, 14) + '..' : subject;
-      doc.setFont('helvetica', 'normal');
-      doc.text(displayName, ML + 2, y + 3.5);
+      const displayName = subject.length > 25 ? subject.substring(0, 23) + '..' : subject;
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.text(displayName, ML + 3, y + 4.1);
 
       const termPrefix = resultType === 'FIRST_TERM' ? '1T_' : '2T_';
 
@@ -501,7 +505,6 @@ function renderStudentResult(
         let val: string | number | undefined = lookup(col.key);
         
         if (isOralSubject && (col.key === 'NB' || col.key === 'SEA')) {
-          // NB and SEA are intentionally not applicable for oral subjects
           val = '-';
         }
         
@@ -533,7 +536,10 @@ function renderStudentResult(
         }
 
         const displayVal = formatDisplayValue(val);
-        doc.text(displayVal, sx + col.w / 2, y + 3.5, { align: 'center' });
+        const isHighlight = col.key === 'Total' || col.key === 'Grade' || col.key === 'Grand Total';
+        doc.setFont('helvetica', isHighlight ? 'bold' : 'normal');
+        doc.setFontSize(isHighlight ? 8.2 : 7.8);
+        doc.text(displayVal, sx + col.w / 2, y + 4.1, { align: 'center' });
         sx += col.w;
       }
 
@@ -570,6 +576,7 @@ function renderStudentResult(
   }
 
   if (additionalSubjects.length > 0) {
+    y += 2;
     const r = renderSubjectTable(additionalSubjects, addScoreCols, 'ADDITIONAL SUBJECTS', true, 50);
     y = r.y;
     totalObtained += r.totalObtained;
@@ -577,20 +584,23 @@ function renderStudentResult(
     subjectCount += r.subjectCount;
   }
 
-  doc.setFontSize(4.5);
+  // 5. Grading scale note
+  y += 1.8;
+  doc.setFontSize(5.8);
   doc.setFont('helvetica', 'italic');
-  doc.rect(ML, y, CW, cellH);
+  doc.rect(ML, y, CW, cellH - 0.8);
   doc.text(
     'Eight Point Grading Scale : A+(91%–100%), A(81%–90%), B+(71%–80%), B(61%–70%), C+(51%–60%), C(41%–50%), D(33%–40%), E+(21%–33%), E(11%–20%), F(0%–10%) (0 Marks for Absentee)',
     PW / 2, y + 3.5, { align: 'center', maxWidth: CW - 4 }
   );
-  y += cellH;
+  y += cellH - 0.8 + 2;
 
+  // 6. Overall Performance Section
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7);
-  doc.setFillColor(230, 230, 230);
+  doc.setFontSize(8.5);
+  doc.setFillColor(235, 238, 242);
   doc.rect(ML, y, CW, cellH, 'FD');
-  doc.text('Overall Performance', PW / 2, y + 3.5, { align: 'center' });
+  doc.text('Overall Performance', PW / 2, y + 4.1, { align: 'center' });
   y += cellH;
 
   const percentage = subjectCount > 0 ? Math.round((totalObtained / totalMax) * 100) : 0;
@@ -598,7 +608,6 @@ function renderStudentResult(
 
   const opLabels = ['TOTAL MARKS', 'MARKS OBTD.', '%', 'SUPW', 'GRADE', 'RANK', 'REMARKS'];
   
-  // In-built Remarks generator based on percentage.
   let generatedRemarks = '';
   if (percentage >= 91) generatedRemarks = 'EXCELLENT';
   else if (percentage >= 81) generatedRemarks = 'VERY GOOD';
@@ -623,117 +632,134 @@ function renderStudentResult(
     generatedRemarks,
   ];
 
-  const opW = CW / opLabels.length;
-  doc.setFontSize(5);
+  const opColsW = [26, 26, 20, 20, 20, 20, CW - (26 + 26 + 20 + 20 + 20 + 20)];
+  doc.setFontSize(7.8);
   doc.setFont('helvetica', 'bold');
+  let curOpX = ML;
   for (let i = 0; i < opLabels.length; i++) {
-    doc.rect(ML + i * opW, y, opW, cellH);
-    doc.text(opLabels[i], ML + i * opW + opW / 2, y + 3.5, { align: 'center' });
+    const w = opColsW[i];
+    doc.rect(curOpX, y, w, cellH);
+    doc.text(opLabels[i], curOpX + w / 2, y + 4.1, { align: 'center' });
+    curOpX += w;
   }
   y += cellH;
 
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(6);
+  curOpX = ML;
   for (let i = 0; i < opValues.length; i++) {
-    doc.rect(ML + i * opW, y, opW, cellH);
-    doc.text(opValues[i], ML + i * opW + opW / 2, y + 3.5, { align: 'center' });
+    const w = opColsW[i];
+    doc.rect(curOpX, y, w, cellH);
+    doc.setFont('helvetica', (i === 1 || i === 2 || i === 4 || i === 6) ? 'bold' : 'normal');
+    doc.setFontSize(7.8);
+    doc.text(opValues[i], curOpX + w / 2, y + 4.1, { align: 'center' });
+    curOpX += w;
   }
-  y += cellH + 1;
+  y += cellH + 2;
 
+  // 7. Attendance Section
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7);
-  doc.setFillColor(230, 230, 230);
+  doc.setFontSize(8.5);
+  doc.setFillColor(235, 238, 242);
   doc.rect(ML, y, CW, cellH, 'FD');
-  doc.text('Attendance', PW / 2, y + 3.5, { align: 'center' });
+  doc.text('Attendance', PW / 2, y + 4.1, { align: 'center' });
   y += cellH;
 
   const attLabels = ['Total Working Days', 'Present', '%', 'Comment'];
-  const attW = CW / 4;
-  doc.setFontSize(5);
+  const attColsW = [35, 35, 35, CW - 105];
+  doc.setFontSize(7.8);
   doc.setFont('helvetica', 'bold');
+  let curAttX = ML;
   for (let i = 0; i < 4; i++) {
-    doc.rect(ML + i * attW, y, attW, cellH);
-    doc.text(attLabels[i], ML + i * attW + attW / 2, y + 3.5, { align: 'center' });
+    const w = attColsW[i];
+    doc.rect(curAttX, y, w, cellH);
+    doc.text(attLabels[i], curAttX + w / 2, y + 4.1, { align: 'center' });
+    curAttX += w;
   }
   y += cellH;
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(6);
+
   const attValues = [
     student.attendance?.workingDays || '',
     student.attendance?.daysAttended || '',
     student.attendance?.percentage || '',
     student.attendance?.remarks || '',
   ];
+  curAttX = ML;
   for (let i = 0; i < 4; i++) {
-    doc.rect(ML + i * attW, y, attW, cellH + 1);
-    doc.text(attValues[i], ML + i * attW + attW / 2, y + 3.5, { align: 'center' });
+    const w = attColsW[i];
+    doc.rect(curAttX, y, w, cellH);
+    doc.setFont('helvetica', i === 3 ? 'bold' : 'normal');
+    doc.setFontSize(7.8);
+    doc.text(attValues[i], curAttX + w / 2, y + 4.1, { align: 'center' });
+    curAttX += w;
   }
   y += cellH + 2;
 
+  // 8. Co-Scholastic & Discipline
   const halfW = CW / 2;
-  const coItemW = halfW * 0.72;
-  const coGradeW = halfW * 0.28;
+  const coItemW = halfW * 0.78;
+  const coGradeW = halfW * 0.22;
+  const coRowH = 5.2;
 
   const termLabel = resultType === 'FIRST_TERM' ? 'Term 1' : 'Term 2';
 
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(5.5);
+  doc.setFontSize(8);
 
-  doc.setFillColor(230, 230, 230);
-  doc.rect(ML, y, halfW, cellH + 2, 'FD');
-  doc.rect(ML + halfW, y, halfW, cellH + 2, 'FD');
-  doc.text('Co – Scholastic Areas', ML + halfW / 2, y + 3, { align: 'center' });
-  doc.setFontSize(4.5);
-  doc.text('(3 Point Grading Scale A, B, C)', ML + halfW / 2, y + 6, { align: 'center' });
-  doc.setFontSize(5.5);
-  doc.text('Discipline', ML + halfW + halfW / 2, y + 3, { align: 'center' });
-  doc.setFontSize(4.5);
-  doc.text('(3 Point Grading Scale A, B, C)', ML + halfW + halfW / 2, y + 6, { align: 'center' });
-  y += cellH + 2;
+  doc.setFillColor(235, 238, 242);
+  doc.rect(ML, y, halfW, cellH + 1.2, 'FD');
+  doc.rect(ML + halfW, y, halfW, cellH + 1.2, 'FD');
+  doc.text('Co – Scholastic Areas (3 Point Grading Scale A, B, C)', ML + halfW / 2, y + 4.6, { align: 'center' });
+  doc.text('Discipline (3 Point Grading Scale A, B, C)', ML + halfW + halfW / 2, y + 4.6, { align: 'center' });
+  y += cellH + 1.2;
 
-  doc.setFontSize(5.5);
+  doc.setFontSize(7.8);
   doc.setFont('helvetica', 'bold');
   doc.rect(ML, y, coItemW, cellH);
   doc.rect(ML + coItemW, y, coGradeW, cellH);
   doc.rect(ML + halfW, y, coItemW, cellH);
   doc.rect(ML + halfW + coItemW, y, coGradeW, cellH);
-  doc.text(termLabel, ML + 2, y + 3.5);
-  doc.text('Grade', ML + coItemW + coGradeW / 2, y + 3.5, { align: 'center' });
-  doc.text(termLabel, ML + halfW + 2, y + 3.5);
-  doc.text('Grade', ML + halfW + coItemW + coGradeW / 2, y + 3.5, { align: 'center' });
+  doc.text('Activity / Skill', ML + 3, y + 4.1);
+  doc.text(termLabel, ML + coItemW + coGradeW / 2, y + 4.1, { align: 'center' });
+  doc.text('Discipline Attribute', ML + halfW + 3, y + 4.1);
+  doc.text(termLabel, ML + halfW + coItemW + coGradeW / 2, y + 4.1, { align: 'center' });
   y += cellH;
 
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(5);
-   const termPrefix = resultType === 'FIRST_TERM' ? '1T_' : '2T_';
-   const maxRows = Math.max(CO_SCHOLASTIC_ITEMS.length, DISCIPLINE_ITEMS.length);
-   for (let i = 0; i < maxRows; i++) {
-     doc.rect(ML, y, coItemW, cellH);
-     doc.rect(ML + coItemW, y, coGradeW, cellH);
-     doc.rect(ML + halfW, y, coItemW, cellH);
-     doc.rect(ML + halfW + coItemW, y, coGradeW, cellH);
- 
-     if (i < CO_SCHOLASTIC_ITEMS.length) {
-       doc.text(CO_SCHOLASTIC_ITEMS[i], ML + 2, y + 3.5);
-       const coGrade = student.coScholastic?.[termPrefix + CO_SCHOLASTIC_ITEMS[i]] || student.coScholastic?.[CO_SCHOLASTIC_ITEMS[i]] || '';
-       if (coGrade) {
-         doc.text(coGrade, ML + coItemW + coGradeW / 2, y + 3.5, { align: 'center' });
-       }
-     }
-     if (i < DISCIPLINE_ITEMS.length) {
-       doc.text(DISCIPLINE_ITEMS[i], ML + halfW + 2, y + 3.5);
-       const discGrade = student.discipline?.[termPrefix + DISCIPLINE_ITEMS[i]] || student.discipline?.[DISCIPLINE_ITEMS[i]] || '';
-       if (discGrade) {
-         doc.text(discGrade, ML + halfW + coItemW + coGradeW / 2, y + 3.5, { align: 'center' });
-       }
-     }
-     y += cellH;
-   }
+  const termPrefix = resultType === 'FIRST_TERM' ? '1T_' : '2T_';
+  const maxRows = Math.max(CO_SCHOLASTIC_ITEMS.length, DISCIPLINE_ITEMS.length);
+  for (let i = 0; i < maxRows; i++) {
+    doc.rect(ML, y, coItemW, coRowH);
+    doc.rect(ML + coItemW, y, coGradeW, coRowH);
+    doc.rect(ML + halfW, y, coItemW, coRowH);
+    doc.rect(ML + halfW + coItemW, y, coGradeW, coRowH);
 
-  y += 2;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.2);
 
+    if (i < CO_SCHOLASTIC_ITEMS.length) {
+      doc.text(CO_SCHOLASTIC_ITEMS[i], ML + 3, y + 3.7);
+      const coGrade = student.coScholastic?.[termPrefix + CO_SCHOLASTIC_ITEMS[i]] || student.coScholastic?.[CO_SCHOLASTIC_ITEMS[i]] || '';
+      if (coGrade) {
+        doc.setFont('helvetica', 'bold');
+        doc.text(coGrade, ML + coItemW + coGradeW / 2, y + 3.7, { align: 'center' });
+        doc.setFont('helvetica', 'normal');
+      }
+    }
+    if (i < DISCIPLINE_ITEMS.length) {
+      doc.text(DISCIPLINE_ITEMS[i], ML + halfW + 3, y + 3.7);
+      const discGrade = student.discipline?.[termPrefix + DISCIPLINE_ITEMS[i]] || student.discipline?.[DISCIPLINE_ITEMS[i]] || '';
+      if (discGrade) {
+        doc.setFont('helvetica', 'bold');
+        doc.text(discGrade, ML + halfW + coItemW + coGradeW / 2, y + 3.7, { align: 'center' });
+        doc.setFont('helvetica', 'normal');
+      }
+    }
+    y += coRowH;
+  }
+
+  y += 2.8;
+
+  // 9. Substantially Enlarged Signature Section (28 mm height)
   const sigW = CW / 3;
-  const sigH = 14;
+  const sigH = 28;
 
   doc.rect(ML, y, sigW, sigH);
   doc.rect(ML + sigW, y, sigW, sigH);
@@ -741,15 +767,15 @@ function renderStudentResult(
 
   if (principalSign) {
     try {
-      doc.addImage(principalSign, 'PNG', ML + 2 * sigW + (sigW - 20) / 2, y + 1, 20, 8);
+      doc.addImage(principalSign, 'PNG', ML + 2 * sigW + (sigW - 30) / 2, y + 4, 30, 13);
     } catch {}
   }
 
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(6);
-  doc.text("Class Teacher's Signature", ML + sigW / 2, y + sigH - 2, { align: 'center' });
-  doc.text("Parent's Signature", ML + sigW + sigW / 2, y + sigH - 2, { align: 'center' });
-  doc.text("Principal's Signature", ML + 2 * sigW + sigW / 2, y + sigH - 2, { align: 'center' });
+  doc.setFontSize(8);
+  doc.text("Class Teacher's Signature", ML + sigW / 2, y + sigH - 3.5, { align: 'center' });
+  doc.text("Parent's Signature", ML + sigW + sigW / 2, y + sigH - 3.5, { align: 'center' });
+  doc.text("Principal's Signature", ML + 2 * sigW + sigW / 2, y + sigH - 3.5, { align: 'center' });
 }
 
 export function getResultFileName(resultType: ResultType, sessionYear: string): string {
